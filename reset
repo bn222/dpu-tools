@@ -1,0 +1,2 @@
+#!/bin/bash
+echo SW_RESET 1 > /dev/rshim0/misc

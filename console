@@ -1,0 +1,2 @@
+#!/bin/bash
+minicom --color on --baudrate 115200 --device /dev/rshim0/console

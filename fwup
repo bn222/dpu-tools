@@ -1,0 +1,84 @@
+#!/bin/env python3
+
+import subprocess
+import json
+import os, sys
+import requests
+import common_bf
+
+remote_url = "https://downloaders.azurewebsites.net/downloaders/bluefield2_fw_downloader/helper.php"
+
+def get_latest_version():
+  data = {'action': 'get_versions', }
+  response = requests.post(remote_url, data=data)
+  return response.json()["latest"]
+
+def get_distros(v):
+  data = {
+    'action': 'get_distros',
+    'version' : v,
+  }
+  r = requests.post(remote_url, data=data)
+
+  return r.json()
+
+def get_os(version, distro):
+  data = {
+    'action': 'get_oses',
+    'version' : version,
+    'distro' : distro,
+  }
+  r = requests.post(remote_url, data=data)
+  return r.json()[0]
+
+def get_download_info(version, distro, os_param):
+  data = {
+    'action': 'get_download_info',
+    'version' : version,
+    'distro' : distro,
+    'os' : os_param,
+    'arch' : 'x64'
+  }
+  r = requests.post(remote_url, data=data)
+  return r.json()
+
+def update_bf_firmware():
+  bf_pci = common_bf.find_bf2_pci_addresses_or_quit()
+  target_psid = common_bf.mst_flint(bf_pci[0])["PSID"]
+
+  version = get_latest_version()
+  print("Latest version: %s" % version)
+  if common_bf.mst_flint(bf_pci[0])["FW Version"] == version:
+    print(f"currently already on {version}")
+    return
+
+  d = get_distros(version)
+  print("Distros: %s" % d)
+
+  for e in d:
+    os_param = get_os(version, e)
+    print(os_param)
+
+    if os_param != target_psid:
+      continue
+
+    url = get_download_info(version, e, os_param)["files"][0]["url"]
+    print(url)
+
+    common_bf.run(["wget", "-q", url, "-O", "fw.zip"])
+    bin_name = [x for x in common_bf.run(["unzip", "-o", "fw.zip"])[0].split(" ") if ".bin" in x]
+    if len(bin_name) != 0:
+      print("unexpected number of binaries to download")
+    cmd = " ".join(["mstflint", "-d", bf_pci[0], "-i", bin_name[0], "burn"])
+    print(cmd)
+    os.system(cmd)
+    cmd = f"mstfwreset -y -d {bf_pci[0]} r"
+    os.system(cmd)
+    break
+
+def main():
+  update_bf_firmware()
+
+if __name__ == "__main__":
+  main()
+

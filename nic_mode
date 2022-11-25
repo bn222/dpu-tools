@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+import common_bf
+import os
+
+bf_pci = common_bf.find_bf2_pci_addresses_or_quit()
+
+os.system(f"mstconfig -y -d {bf_pci[0]} s INTERNAL_CPU_MODEL=1")
+os.system(f"mstconfig -y -d {bf_pci[0]} s INTERNAL_CPU_PAGE_SUPPLIER=1")
+os.system(f"mstconfig -y -d {bf_pci[0]} s INTERNAL_CPU_ESWITCH_MANAGER=1")
+os.system(f"mstconfig -y -d {bf_pci[0]} s INTERNAL_CPU_IB_VPORT0=1")
+os.system(f"mstconfig -y -d {bf_pci[0]} s INTERNAL_CPU_OFFLOAD_ENGINE=1")

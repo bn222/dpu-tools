@@ -1,0 +1,7 @@
+#!/usr/bin/env python
+
+import os, sys
+import common_bf
+
+bf_pci = common_bf.find_bf2_pci_addresses_or_quit()
+os.system(f"mstconfig -y -d {bf_pci[0]} r")

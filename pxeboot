@@ -1,0 +1,286 @@
+#!/usr/bin/env python3
+import argparse, os, sys, subprocess
+from posixpath import dirname
+from multiprocessing import Process
+import pexpect
+import paramiko
+import time
+import re
+import io
+
+import http.server
+import socketserver
+
+def read_as_string(cmd):
+  with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
+    return (proc.stdout.read().decode("utf-8"), proc.stderr.read().decode("utf-8"))
+
+def get_ip(interface):
+  output = read_as_string("ip a show".split() + [interface])[0]
+  inet_lines = filter(lambda x: x.startswith("    inet"), output.split("\n"))
+  inet_lines = map(lambda x: x.strip().split()[1], inet_lines)
+  return list(inet_lines)
+
+def copy(src, dst):
+  return read_as_string(["cp", src, dst])
+
+def write_file(fn, contents):
+  with open(fn, "w") as f:
+    f.write(contents)
+
+def read_file(fn):
+  with open(fn, "r") as f:
+    return "".join(f.readlines())
+
+def read_args():
+  parser = argparse.ArgumentParser(description='Set up a PXE server on a specific port.')
+  parser.add_argument('iso', metavar='iso', type=str, help='iso to use for PXE booting')
+  parser.add_argument("id_rsa",  metavar='iso', type=str, help='id_rsa is required')
+
+  args = parser.parse_args()
+  args.ip = "172.31.100.1"
+  args.net_prefix = "24"
+  args.subnet = "172.31.100.0"
+  return args
+
+def validate_args(args):
+  if args.port not in os.listdir("/sys/class/net/"):
+    print(f"Couldn't find port {args.port}")
+    sys.exit(-1)
+
+  if not os.path.exists(args.iso):
+    print(f"Couldn't read iso file {args.iso}")
+    sys.exit(-1)
+
+def dhcp_config(server_ip, subnet):
+  return f"""option space pxelinux;
+option pxelinux.magic code 208 = string;
+option pxelinux.configfile code 209 = text;
+option pxelinux.pathprefix code 210 = text;
+option pxelinux.reboottime code 211 = unsigned integer 32;
+option architecture-type code 93 = unsigned integer 16;
+allow booting;
+allow bootp;
+
+next-server {server_ip};
+always-broadcast on;
+
+filename "/BOOTAA64.EFI";
+
+subnet {subnet} netmask 255.255.255.0 {{
+    range 172.31.100.10 172.31.100.20;
+    option broadcast-address 172.31.100.255;
+    option routers {server_ip};
+    option domain-name-servers 10.19.42.41, 10.11.5.19, 10.2.32.1;
+    option domain-search "anl.lab.eng.bos.redhat.com";
+    option dhcp-client-identifier = option dhcp-client-identifier;
+}}
+
+"""
+
+def grub_config(base_path, base_name):
+  return f"""
+  set timeout=5
+
+menuentry 'Install' --class red --class gnu-linux --class gnu --class os {{
+    linux {base_path}/vmlinuz showopts coreos.live.rootfs_url=http://172.31.100.1/{base_name}/images/pxeboot/rootfs.img ignition.firstboot ignition.platform.id=metal console=tty0 console=tty1 console=ttyS0,115200 console=ttyS1,115200 ip=dhcp console=ttyAMA1 console=hvc0 console=ttyAMA0 earlycon=pl011,0x01000000
+    initrd {base_path}/initrd.img {base_path}/ignition.img
+}}
+
+menuentry 'Reboot' --class red --class gnu-linux --class gnu --class os {{
+    reboot
+}}
+"""
+
+def bf_reboot():
+  with open("/dev/rshim0/misc", "w") as f:
+    f.write("SW_RESET 1")
+
+def prepare_pxe(args):
+  ip = get_ip(args.port)
+  if ip and (len(ip) != 1 or ip[0] != "%s/%s" % (args.ip, args.net_prefix)):
+    print("The port already has the following ip addresses: %s" % ip)
+    read_as_string("ip a f".split() + [args.port])
+
+  read_as_string(("ip a a %s/%s dev %s" % (args.ip, args.net_prefix, args.port)).split())
+
+  pxe_mount = "/var/ftp/%s" % args.iso.rstrip(".iso")
+  cmd = f"mkdir -p {pxe_mount}"
+  read_as_string(cmd.split())
+  cmd = f"mount -t iso9660 -o loop {args.iso} {pxe_mount}"
+  read_as_string(cmd.split())
+
+  rhel_files = [
+    "BOOTAA64.EFI",
+    "grubaa64.efi",
+    "mmaa64.efi"]
+
+  if not all(map(os.path.exists, rhel_files)):
+    print("Missing boot files, downloading efiboot.img from RHEL-8.4")
+    url = "http://download.eng.bos.redhat.com/released/rhel-8/RHEL-8/8.4.0/BaseOS/aarch64/os/images/efiboot.img"
+    cmd = f"wget -N {url}"
+    print(read_as_string(cmd.split()))
+    mount_path = f"/var/ftp/efibootimg"
+    cmd = f"mkdir -p {mount_path}"
+    print(read_as_string(cmd.split()))
+    cmd = f"mount efiboot.img {mount_path}"
+    print(read_as_string(cmd.split()))
+
+    for file in rhel_files:
+      copy(f"{mount_path}/EFI/BOOT/{file}", "/var/lib/tftpboot/")
+
+  ftpboot_pxe_dir_name = f"/var/lib/tftpboot/pxelinux/images/{args.iso[:-4]}"
+  cmd = "mkdir -p " + ftpboot_pxe_dir_name
+  print(cmd)
+  print(read_as_string(cmd.split()))
+  copy(os.path.join(pxe_mount, "images/pxeboot/vmlinuz"), ftpboot_pxe_dir_name)
+  copy(os.path.join(pxe_mount, "images/pxeboot/initrd.img"), ftpboot_pxe_dir_name)
+  copy(os.path.join(pxe_mount, "images/ignition.img"), ftpboot_pxe_dir_name)
+
+  fn = "/var/lib/tftpboot/grub.cfg"
+  print(f"writing configuration to {fn}")
+  print(ftpboot_pxe_dir_name)
+  write_file(fn, grub_config(ftpboot_pxe_dir_name[len("/var/lib/tftpboot/"):], pxe_mount.split("/")[-1]))
+
+  fn = "/etc/dhcp/dhcpd.conf"
+  print(f"writing configuration to {fn}")
+  write_file(fn, dhcp_config(args.ip, args.subnet))
+
+def bf_select_pxe_entry():
+  ESC="\x1b"
+  KEY_DOWN = '\x1b[B'
+  KEY_ENTER = '\r\n'
+
+  read_as_string("pkill -9 minicom".split())
+  print("spawn minicom")
+  child = pexpect.spawn('minicom --baudrate 115200 --device /dev/rshim0/console')
+  child.maxread=10000
+  print("waiting 300 sec for the boot countdown to interrupt it and go to bios")
+  child.expect("3 seconds remainin", timeout=300)
+  print("found countdown, sending 'esc' twice")
+  child.send(ESC*2)
+  time.sleep(1)
+  child.close()
+  print("respawning minicom")
+  child = pexpect.spawn('minicom --baudrate 115200 --device /dev/rshim0/console')
+  time.sleep(1)
+  print("pressing down")
+  child.send(KEY_DOWN)
+  time.sleep(1)
+  print("waiting on language option")
+  child.expect("This is the option.*one adjusts to change.*the language for the.*current system", timeout=3)
+  print("pressing down again")
+  child.send(KEY_DOWN)
+  print("wainting for Boot manager entry")
+  child.expect("This selection will.*take you to the Boot.*Manager", timeout=3)
+  print("sending enter")
+  child.send(KEY_ENTER)
+  child.expect("Device Path")
+  retry = 30
+  while retry:
+    child.send(KEY_DOWN)
+    time.sleep(0.1)
+    try:
+      child.expect("MAC.001ACAFFFF01,0x1.*IPv4.0.0.0.0.", timeout=1)
+      break
+    except:
+      print(f"didn't find tmfifo pxe boot interface, will retry {retry} more times")
+      retry -= 1
+  if not retry:
+    print("Didn't find boot interface")
+    sys.exit(-1)
+  else:
+    print("Found boot interface, sending 'enter'")
+    child.send(KEY_ENTER)
+    time.sleep(1)
+  child.close()
+
+def run(cmd):
+  cmd = cmd.split()
+  p = Process(target=read_as_string, args=(cmd,))
+  p.start()
+  return p
+
+def http_server():
+  os.chdir("/var/ftp/mnt")
+  server_address = ('', 80)
+  handler = http.server.SimpleHTTPRequestHandler
+  httpd = http.server.HTTPServer(server_address, handler)
+  httpd.serve_forever()
+
+def try_pxy_boot():
+  args = read_args()
+  validate_args(args)
+
+  if ":/" in args.iso:
+    os.system(f"mount {args.iso} /mnt/")
+    args.iso = os.path.join("/mnt", os.path.basename(args.iso.split(":/")[1]))
+
+  args.port = "tmfifo_net0"
+  prepare_pxe(args)
+
+  print("Rebooting bf")
+  bf_reboot()
+
+  # need to wait long enough after reboot before setting
+  # ip, otherwise it will be removed again
+  time.sleep(5)
+  read_as_string(("ip a a %s/%s dev %s" % (args.ip, args.net_prefix, args.port)).split())
+
+  children = []
+
+  print("starting dhpcd")
+  read_as_string("killall dhcpd".split())
+  p = run("/usr/sbin/dhcpd -f -cf /etc/dhcp/dhcpd.conf -user dhcpd -group dhcpd")
+  children.append(p)
+
+  print("starting http server")
+  p = Process(target=http_server)
+  p.start()
+  children.append(p)
+
+  print("starting in.tftpd")
+  read_as_string("killall in.tftpd".split())
+  p = run("/usr/sbin/in.tftpd -s -L /var/lib/tftpboot")
+  children.append(p)
+  print("selecting pxe entry in bf")
+  bf_select_pxe_entry()
+
+  id_rsa_file = "/mnt/id_rsa"
+  with open(id_rsa_file, "r") as f:
+    id_rsa = f.read().strip()
+
+  while True:
+    try:
+      host = paramiko.SSHClient()
+      host.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+      pkey = paramiko.RSAKey.from_private_key(io.StringIO(id_rsa))
+      host.connect("172.31.100.11", username = 'core', pkey = pkey)
+      break
+    except paramiko.ssh_exception.NoValidConnectionsError as e:
+      print(f"Unable to establish SSH connection: {e}")
+
+  print("BF is up (ssh connection established)")
+  local_date = read_as_string("date")[0]
+  print(f"setting date to {local_date}")
+  host.exec_command(f"sudo date -s '{local_date}'")
+  print("getting ip addresses")
+  ipa = host.exec_command("ip --json a")[1].readlines()[0].strip()
+  host.close()
+
+  print("Terminating http, ftp, and dhcpd")
+  for e in children:
+    e.terminate()
+  print(ipa)
+
+def main():
+  for retry in range(3):
+    try:
+      try_pxy_boot()
+      break
+    except:
+      print(f"pxe boot failed, retrying (count {retry + 1})")
+      pass
+
+if __name__ == "__main__":
+  main()
