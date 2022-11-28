@@ -35,7 +35,7 @@ def read_file(fn):
 def read_args():
   parser = argparse.ArgumentParser(description='Set up a PXE server on a specific port.')
   parser.add_argument('iso', metavar='iso', type=str, help='iso to use for PXE booting')
-  parser.add_argument("id_rsa",  metavar='iso', type=str, help='id_rsa is required')
+  parser.add_argument("id_rsa",  metavar='id_rsa', type=str, help='id_rsa is required')
 
   args = parser.parse_args()
   args.ip = "172.31.100.1"
@@ -44,11 +44,7 @@ def read_args():
   return args
 
 def validate_args(args):
-  if args.port not in os.listdir("/sys/class/net/"):
-    print(f"Couldn't find port {args.port}")
-    sys.exit(-1)
-
-  if not os.path.exists(args.iso):
+  if ":/" not in args.iso and not os.path.exists(args.iso):
     print(f"Couldn't read iso file {args.iso}")
     sys.exit(-1)
 
@@ -78,12 +74,13 @@ subnet {subnet} netmask 255.255.255.0 {{
 
 """
 
-def grub_config(base_path, base_name):
+def grub_config(base_path, ip):
   return f"""
   set timeout=5
 
 menuentry 'Install' --class red --class gnu-linux --class gnu --class os {{
-    linux {base_path}/vmlinuz showopts coreos.live.rootfs_url=http://172.31.100.1/{base_name}/images/pxeboot/rootfs.img ignition.firstboot ignition.platform.id=metal console=tty0 console=tty1 console=ttyS0,115200 console=ttyS1,115200 ip=dhcp console=ttyAMA1 console=hvc0 console=ttyAMA0 earlycon=pl011,0x01000000
+    linux {base_path}/vmlinuz showopts coreos.live.rootfs_url=http://{ip}/rootfs.img \
+      ignition.firstboot ignition.platform.id=metal console=tty0 console=tty1 console=ttyS0,115200 console=ttyS1,115200 \ip=dhcp console=ttyAMA1 console=hvc0 console=ttyAMA0 earlycon=pl011,0x01000000
     initrd {base_path}/initrd.img {base_path}/ignition.img
 }}
 
@@ -104,7 +101,7 @@ def prepare_pxe(args):
 
   read_as_string(("ip a a %s/%s dev %s" % (args.ip, args.net_prefix, args.port)).split())
 
-  pxe_mount = "/var/ftp/%s" % args.iso.rstrip(".iso")
+  pxe_mount = "/var/ftp/mnt"
   cmd = f"mkdir -p {pxe_mount}"
   read_as_string(cmd.split())
   cmd = f"mount -t iso9660 -o loop {args.iso} {pxe_mount}"
@@ -129,9 +126,8 @@ def prepare_pxe(args):
     for file in rhel_files:
       copy(f"{mount_path}/EFI/BOOT/{file}", "/var/lib/tftpboot/")
 
-  ftpboot_pxe_dir_name = f"/var/lib/tftpboot/pxelinux/images/{args.iso[:-4]}"
+  ftpboot_pxe_dir_name = f"/var/lib/tftpboot/pxelinux"
   cmd = "mkdir -p " + ftpboot_pxe_dir_name
-  print(cmd)
   print(read_as_string(cmd.split()))
   copy(os.path.join(pxe_mount, "images/pxeboot/vmlinuz"), ftpboot_pxe_dir_name)
   copy(os.path.join(pxe_mount, "images/pxeboot/initrd.img"), ftpboot_pxe_dir_name)
@@ -139,8 +135,7 @@ def prepare_pxe(args):
 
   fn = "/var/lib/tftpboot/grub.cfg"
   print(f"writing configuration to {fn}")
-  print(ftpboot_pxe_dir_name)
-  write_file(fn, grub_config(ftpboot_pxe_dir_name[len("/var/lib/tftpboot/"):], pxe_mount.split("/")[-1]))
+  write_file(fn, grub_config("pxelinux", args.ip))
 
   fn = "/etc/dhcp/dhcpd.conf"
   print(f"writing configuration to {fn}")
@@ -155,8 +150,8 @@ def bf_select_pxe_entry():
   print("spawn minicom")
   child = pexpect.spawn('minicom --baudrate 115200 --device /dev/rshim0/console')
   child.maxread=10000
-  print("waiting 300 sec for the boot countdown to interrupt it and go to bios")
-  child.expect("3 seconds remainin", timeout=300)
+  print("waiting 30 sec for the boot countdown to interrupt it and go to bios")
+  child.expect("3 seconds remainin", timeout=30)
   print("found countdown, sending 'esc' twice")
   child.send(ESC*2)
   time.sleep(1)
@@ -202,19 +197,34 @@ def run(cmd):
   return p
 
 def http_server():
-  os.chdir("/var/ftp/mnt")
+  os.chdir("/var/ftp/mnt/images/pxeboot/")
   server_address = ('', 80)
   handler = http.server.SimpleHTTPRequestHandler
   httpd = http.server.HTTPServer(server_address, handler)
   httpd.serve_forever()
+
+def split_nfs_path(n):
+  splitted = n.split(":")
+  return splitted[0], ":".join(splitted[1:])
+
+def mount_nfs_path(arg, mount_path):
+  mount_path = "/mnt/iso"
+  if not os.path.exists(mount_path):
+    os.mkdir(mount_path)
+  ip, path = split_nfs_path(arg)
+  print(f"mounting {ip}:{os.path.dirname(path)} at {mount_path}")
+  os.system(f"mount {ip}:{os.path.dirname(path)} {mount_path}")
+  return os.path.join(mount_path, os.path.basename(path))
 
 def try_pxy_boot():
   args = read_args()
   validate_args(args)
 
   if ":/" in args.iso:
-    os.system(f"mount {args.iso} /mnt/")
-    args.iso = os.path.join("/mnt", os.path.basename(args.iso.split(":/")[1]))
+    args.iso = mount_nfs_path(args.iso, "/mnt/iso")
+
+  if ":/" in args.id_rsa:
+    args.id_rsa = mount_nfs_path(args.id_rsa, "/mnt/id_rsa")
 
   args.port = "tmfifo_net0"
   prepare_pxe(args)
@@ -246,8 +256,7 @@ def try_pxy_boot():
   print("selecting pxe entry in bf")
   bf_select_pxe_entry()
 
-  id_rsa_file = "/mnt/id_rsa"
-  with open(id_rsa_file, "r") as f:
+  with open(args.id_rsa, "r") as f:
     id_rsa = f.read().strip()
 
   while True:
@@ -259,6 +268,7 @@ def try_pxy_boot():
       break
     except paramiko.ssh_exception.NoValidConnectionsError as e:
       print(f"Unable to establish SSH connection: {e}")
+      time.sleep(1)
 
   print("BF is up (ssh connection established)")
   local_date = read_as_string("date")[0]
@@ -278,7 +288,8 @@ def main():
     try:
       try_pxy_boot()
       break
-    except:
+    except Exception as e:
+      print(e)
       print(f"pxe boot failed, retrying (count {retry + 1})")
       pass
 
