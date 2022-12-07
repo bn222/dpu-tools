@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+BFB_IMAGE=DOCA_1.5.1_BSP_3.9.3_Ubuntu_20.04-4.2211-LTS.signed.bfb
+wget -c https://content.mellanox.com/BlueField/BFBs/Ubuntu20.04/$BFB_IMAGE
+cat $BFB_IMAGE > /dev/rshim0/boot

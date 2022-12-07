@@ -21,7 +21,8 @@ sudo podman exec -it bf <TOOL_NAME>
 | `fwversion`  | Shows firmware version                                                                     |
 | `console`    | Starts a minicom console to access the BF-2.                                               |
 | `pxeboot`    | Starts a pxe server and tells BF-2 to boot from it. An coreos iso file needs to be passed. |
-| `defaults`   | Resets the firmware settings on the BF-2 to defaults.                                      |
+| `fwdefaults` | Resets the firmware settings on the BF-2 to defaults.                                      |
+| `bfb`        | Downloads BFB images and sends it to the BF-2.                                             |
 
 The only tool that requires an argument is the `pxeboot` tool. It expect an iso file with coreos that should
 be booted through the rshim. The iso file can optionally be on an nfs mount point.
