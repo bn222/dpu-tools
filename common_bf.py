@@ -24,13 +24,15 @@ def find_bf2_pci_addresses():
   bfs = [e for e in ai.items() if "BlueField-2" in e[1]]
   return [k.split("@")[1] for k, v in bfs]
 
-def find_bf2_pci_addresses_or_quit():
+def find_bf2_pci_addresses_or_quit(bf_id):
   bf_pci = find_bf2_pci_addresses()
-  print(f"Found {len(bf_pci)} BlueField-2s at {bf_pci}")
   if not bf_pci:
-    print("No BF found")
+    print("No BF-2 found")
     sys.exit(-1)
-  return bf_pci
+  if bf_id < 0 or bf_id >= len(bf_pci):
+    print("Invalid ID for BF-2")
+    sys.exit(-1)
+  return bf_pci[bf_id]
 
 def mst_flint(pci):
   out = run(["mstflint", "-d", pci, "q"])[0]

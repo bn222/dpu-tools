@@ -7,6 +7,7 @@ import paramiko
 import time
 import re
 import io
+import common_bf
 
 import http.server
 import socketserver
@@ -36,6 +37,7 @@ def read_args():
   parser = argparse.ArgumentParser(description='Set up a PXE server on a specific port.')
   parser.add_argument('iso', metavar='iso', type=str, help='iso to use for PXE booting')
   parser.add_argument("id_rsa",  metavar='id_rsa', type=str, help='id_rsa is required')
+  parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
 
   args = parser.parse_args()
   args.ip = "172.31.100.1"
@@ -47,6 +49,8 @@ def validate_args(args):
   if ":/" not in args.iso and not os.path.exists(args.iso):
     print(f"Couldn't read iso file {args.iso}")
     sys.exit(-1)
+
+  common_bf.find_bf2_pci_addresses_or_quit(args.id)
 
 def dhcp_config(server_ip, subnet):
   return f"""option space pxelinux;
@@ -89,8 +93,11 @@ menuentry 'Reboot' --class red --class gnu-linux --class gnu --class os {{
 }}
 """
 
-def bf_reboot():
-  with open("/dev/rshim0/misc", "w") as f:
+def rshim_base(args):
+  return f"/dev/rshim{args.id//2}/"
+
+def bf_reboot(args):
+  with open(f"{rshim_base(args)}/misc", "w") as f:
     f.write("SW_RESET 1")
 
 def prepare_pxe(args):
@@ -141,14 +148,14 @@ def prepare_pxe(args):
   print(f"writing configuration to {fn}")
   write_file(fn, dhcp_config(args.ip, args.subnet))
 
-def bf_select_pxe_entry():
+def bf_select_pxe_entry(args):
   ESC="\x1b"
   KEY_DOWN = '\x1b[B'
   KEY_ENTER = '\r\n'
 
   read_as_string("pkill -9 minicom".split())
   print("spawn minicom")
-  child = pexpect.spawn('minicom --baudrate 115200 --device /dev/rshim0/console')
+  child = pexpect.spawn(f'minicom --baudrate 115200 --device {rshim_base(args)}/console')
   child.maxread=10000
   print("waiting 30 sec for the boot countdown to interrupt it and go to bios")
   child.expect("3 seconds remainin", timeout=30)
@@ -157,7 +164,7 @@ def bf_select_pxe_entry():
   time.sleep(1)
   child.close()
   print("respawning minicom")
-  child = pexpect.spawn('minicom --baudrate 115200 --device /dev/rshim0/console')
+  child = pexpect.spawn(f'minicom --baudrate 115200 --device {rshim_base(args)}/console')
   time.sleep(1)
   print("pressing down")
   child.send(KEY_DOWN)
@@ -230,7 +237,7 @@ def try_pxy_boot():
   prepare_pxe(args)
 
   print("Rebooting bf")
-  bf_reboot()
+  bf_reboot(args)
 
   # need to wait long enough after reboot before setting
   # ip, otherwise it will be removed again
@@ -254,7 +261,7 @@ def try_pxy_boot():
   p = run("/usr/sbin/in.tftpd -s -L /var/lib/tftpboot")
   children.append(p)
   print("selecting pxe entry in bf")
-  bf_select_pxe_entry()
+  bf_select_pxe_entry(args)
 
   with open(args.id_rsa, "r") as f:
     id_rsa = f.read().strip()

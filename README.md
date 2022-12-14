@@ -2,7 +2,7 @@
 This repository contains tools and a Containerfile to build a container which provides a conveniant way to manage Buefield-2 (BF-2). Make sure that the underlying system has kernel-modules-extra installed (since cuse is a dependency) and run the container as follows (a build is available on quay.io):
 
 ```
-sudo podman run --pid host --network host --user 0 --name bf -dit --privileged -v /dev:/dev quay.io/bnemeth/bf
+sudo podman run --pull always --replace --pid host --network host --user 0 --name bf -dit --privileged -v /dev:/dev quay.io/bnemeth/bf
 ```
 
 ## Tools

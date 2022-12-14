@@ -1,5 +1,14 @@
-#!/usr/bin/env python3
-import common_bf
+#!/usr/bin/env python
 
-bf_pci = common_bf.find_bf2_pci_addresses_or_quit()
-print(common_bf.mst_flint(bf_pci[0])["FW Version"])
+import common_bf
+import argparse
+
+def main():
+  parser = argparse.ArgumentParser(description='Shows firmware version.')
+  parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
+  args = parser.parse_args()
+  bf = common_bf.find_bf2_pci_addresses_or_quit(args.id)
+  print(common_bf.mst_flint(bf)["FW Version"])
+
+if __name__ == "__main__":
+  main()

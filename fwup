@@ -5,6 +5,7 @@ import json
 import os, sys
 import requests
 import common_bf
+import argparse
 
 remote_url = "https://downloaders.azurewebsites.net/downloaders/bluefield2_fw_downloader/helper.php"
 
@@ -42,13 +43,13 @@ def get_download_info(version, distro, os_param):
   r = requests.post(remote_url, data=data)
   return r.json()
 
-def update_bf_firmware():
-  bf_pci = common_bf.find_bf2_pci_addresses_or_quit()
-  target_psid = common_bf.mst_flint(bf_pci[0])["PSID"]
+def update_bf_firmware(args):
+  bf = common_bf.find_bf2_pci_addresses_or_quit(args.id)
+  target_psid = common_bf.mst_flint(bf)["PSID"]
 
   version = get_latest_version()
   print("Latest version: %s" % version)
-  if common_bf.mst_flint(bf_pci[0])["FW Version"] == version:
+  if common_bf.mst_flint(bf)["FW Version"] == version:
     print(f"currently already on {version}")
     return
 
@@ -69,15 +70,18 @@ def update_bf_firmware():
     bin_name = [x for x in common_bf.run(["unzip", "-o", "fw.zip"])[0].split(" ") if ".bin" in x]
     if len(bin_name) != 0:
       print("unexpected number of binaries to download")
-    cmd = " ".join(["mstflint", "-d", bf_pci[0], "-i", bin_name[0], "burn"])
+    cmd = " ".join(["mstflint", "-d", bf, "-i", bin_name[0], "burn"])
     print(cmd)
     os.system(cmd)
-    cmd = f"mstfwreset -y -d {bf_pci[0]} r"
+    cmd = f"mstfwreset -y -d {bf} r"
     os.system(cmd)
     break
 
 def main():
-  update_bf_firmware()
+  parser = argparse.ArgumentParser(description='Specify the id of the BF-2.Updates the firmware on the BF-2 to the latest avaible one.')
+  parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
+  args = parser.parse_args()
+  update_bf_firmware(args)
 
 if __name__ == "__main__":
   main()
