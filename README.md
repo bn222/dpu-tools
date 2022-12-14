@@ -16,7 +16,6 @@ sudo podman exec -it bf <TOOL_NAME>
 | Tool         | Purpose                                                                                    |
 |--------------|--------------------------------------------------------------------------------------------|
 | `reset`      | Reboots the BF-2.                                                                          |
-| `nic_mode`   | Switches the BF-2 to nic mode.                                                             |
 | `listbf`     | List all BF-2 on the system.                                                               |
 | `fwup`       | Updates the firmware on the BF-2 to the latest.                                            |
 | `fwversion`  | Shows firmware version                                                                     |
@@ -24,7 +23,8 @@ sudo podman exec -it bf <TOOL_NAME>
 | `pxeboot`    | Starts a pxe server and tells BF-2 to boot from it. An coreos iso file needs to be passed. |
 | `fwdefaults` | Resets the firmware settings on the BF-2 to defaults.                                      |
 | `bfb`        | Downloads BFB images and sends it to the BF-2.                                             |
-
+| `set_mode`   | Sets the BF-2 mode to either dpu or nic. One argument is required                          |
+| `get_mode`   | Gets the BF-2 mode.                                                                        |
 
 The only tool that requires an argument is the `pxeboot` tool. It expect an iso file with coreos that should
 be booted through the rshim. The iso file can optionally be on an nfs mount point.
