@@ -51,7 +51,7 @@ def update_bf_firmware(args):
   print("Latest version: %s" % version)
   if common_bf.mst_flint(bf)["FW Version"] == version:
     print(f"currently already on {version}")
-    return
+    return 1
 
   d = get_distros(version)
   print("Distros: %s" % d)
@@ -76,12 +76,14 @@ def update_bf_firmware(args):
     cmd = f"mstfwreset -y -d {bf} r"
     os.system(cmd)
     break
+  return 0
 
 def main():
   parser = argparse.ArgumentParser(description='Specify the id of the BF-2.Updates the firmware on the BF-2 to the latest avaible one.')
   parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
   args = parser.parse_args()
-  update_bf_firmware(args)
+  r = update_bf_firmware(args)
+  sys.exit(r)
 
 if __name__ == "__main__":
   main()
