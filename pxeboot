@@ -183,7 +183,7 @@ def bf_select_pxe_entry(args):
     child.send(KEY_DOWN)
     time.sleep(0.1)
     try:
-      child.expect("MAC.001ACAFFFF01,0x1.*IPv4.0.0.0.0.", timeout=1)
+      child.expect("MAC.001ACAFFFF..,0x1.*IPv4.0.0.0.0.", timeout=1)
       break
     except:
       print(f"didn't find tmfifo pxe boot interface, will retry {retry} more times")
