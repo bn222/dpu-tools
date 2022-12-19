@@ -8,7 +8,7 @@ def main():
   parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
   args = parser.parse_args()
   bf_pci = common_bf.find_bf2_pci_addresses_or_quit(args.id)
-  with open(f"/dev/rshim{args.id//2}", "w") as f:
+  with open(f"/dev/rshim{args.id//2}/misc", "w") as f:
     f.write("SW_RESET 1")
 
 if __name__ == "__main__":
