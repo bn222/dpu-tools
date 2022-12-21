@@ -30,21 +30,21 @@ def main():
       save_next = True
     elif save_next:
       k, v = e.split()
-      settings[k] = v
+      settings[k] = v.split("(")[1].split(")")[0]
 
   dpu_mode = {
-    'INTERNAL_CPU_MODEL': 'EMBEDDED_CPU(1)',
-    'INTERNAL_CPU_PAGE_SUPPLIER': 'ECPF(0)',
-    'INTERNAL_CPU_ESWITCH_MANAGER': 'ECPF(0)',
-    'INTERNAL_CPU_IB_VPORT0': 'ECPF(0)',
-    'INTERNAL_CPU_OFFLOAD_ENGINE': 'ENABLED(0)'}
+    'INTERNAL_CPU_MODEL': '1',
+    'INTERNAL_CPU_PAGE_SUPPLIER': '0',
+    'INTERNAL_CPU_ESWITCH_MANAGER': '0',
+    'INTERNAL_CPU_IB_VPORT0': '0',
+    'INTERNAL_CPU_OFFLOAD_ENGINE': '0'}
 
   nic_mode = {
-    'INTERNAL_CPU_MODEL': 'EMBEDDED_CPU(1)',
-    'INTERNAL_CPU_PAGE_SUPPLIER': 'ECPF(1)',
-    'INTERNAL_CPU_ESWITCH_MANAGER': 'ECPF(1)',
-    'INTERNAL_CPU_IB_VPORT0': 'ECPF(1)',
-    'INTERNAL_CPU_OFFLOAD_ENGINE': 'ENABLED(1)'}
+    'INTERNAL_CPU_MODEL': '1',
+    'INTERNAL_CPU_PAGE_SUPPLIER': '1',
+    'INTERNAL_CPU_ESWITCH_MANAGER': '1',
+    'INTERNAL_CPU_IB_VPORT0': '1',
+    'INTERNAL_CPU_OFFLOAD_ENGINE': '1'}
 
   if dpu_mode == settings:
     print("dpu")
