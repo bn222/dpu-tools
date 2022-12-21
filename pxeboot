@@ -86,8 +86,11 @@ subnet {subnet} netmask 255.255.255.0 {{
 def grub_config(base_path, ip, is_coreos):
   if is_coreos:
     opts = f"coreos.live.rootfs_url=http://{ip}/rootfs.img ignition.firstboot ignition.platform.id=metal"
+    ign_opts = f"{base_path}/ignition.img"
   else:
     opts = f"inst.repo=http://{ip}/mnt inst.ks=http://{ip}/kickstart.ks"
+    ign_opts = ""
+
   return f"""
   set timeout=5
 
@@ -95,7 +98,7 @@ menuentry 'Install' --class red --class gnu-linux --class gnu --class os {{
     linux {base_path}/vmlinuz showopts {opts} \
         console=tty0 console=tty1 console=ttyS0,115200 console=ttyS1,115200 \
         ip=dhcp console=ttyAMA1 console=hvc0 console=ttyAMA0 earlycon=pl011,0x01000000
-    initrd {base_path}/initrd.img
+    initrd {base_path}/initrd.img {ign_opts}
 }}
 
 menuentry 'Reboot' --class red --class gnu-linux --class gnu --class os {{
