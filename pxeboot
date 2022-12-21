@@ -41,7 +41,6 @@ def read_args():
   " in to the BF-2 and run \'ip --json a\' before quitting."
   " This also means that the script will only block when the BF-2 has booted"
   )
-  parser.add_argument('-c', '--coreos', dest='is_coreos', default=False, action='store', type=bool, help='specify if the iso is coreos or rhel')
   parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
 
   args = parser.parse_args()
@@ -124,6 +123,10 @@ def prepare_pxe(args):
   read_as_string(cmd.split())
   cmd = f"mount -t iso9660 -o loop {args.iso} {pxe_mount}"
   read_as_string(cmd.split())
+
+  args.is_coreos = os.path.exists("/var/ftp/mnt/coreos")
+
+  print(f'{"Coreos" if args.is_coreos else "Rhel"} detected')
 
   rhel_files = [
     "BOOTAA64.EFI",
