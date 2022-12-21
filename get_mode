@@ -5,7 +5,11 @@ import argparse
 
 def main():
   parser = argparse.ArgumentParser(description='Reads the current mode of the BF-2.')
-  parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
+  parser.add_argument('-i', '--id', dest='id', default=0,
+                      action='store', type=int, help='Specify the id of the BF-2.')
+  parser.add_argument('-v', '--verbose', dest='verbose',
+                      default=False, action='store', type=bool,
+                      help='Enable verbose output. This will show the settings')
   args = parser.parse_args()
 
   bf = common_bf.find_bf2_pci_addresses_or_quit(args.id)
@@ -52,6 +56,8 @@ def main():
     print("nic")
   else:
     print("unknown")
+  if args.verbose:
+    print(settings)
 
 if __name__ == "__main__":
   main()
