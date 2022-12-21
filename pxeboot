@@ -34,9 +34,11 @@ def read_file(fn):
     return "".join(f.readlines())
 
 def read_args():
+  url = "http://download.eng.bos.redhat.com/released/rhel-8/RHEL-8/8.4.0/BaseOS/aarch64/os/images/efiboot.img"
   parser = argparse.ArgumentParser(description='Set up a PXE server on a specific port.')
   parser.add_argument('iso', metavar='iso', type=str, help='iso to use for PXE booting')
   parser.add_argument("-w",  metavar='id_rsa', dest='id_rsa', default='', type=str, help='id_rsa is required')
+  parser.add_argument("-e",  metavar='efiboot_img', dest='efiboot_img', default=url, type=str, help='Specify url to pull efiboot from.')
   help = ("if id_rsa is specified, the script will log"
   " in to the BF-2 and run \'ip --json a\' before quitting."
   " This also means that the script will only block when the BF-2 has booted"
@@ -139,8 +141,7 @@ def prepare_pxe(args):
   if not all(map(os.path.exists, rhel_files)):
     print("Missing boot files, downloading efiboot.img from RHEL-8.4")
     if not os.path.exists("efiboot.img"):
-      url = "http://download.eng.bos.redhat.com/released/rhel-8/RHEL-8/8.4.0/BaseOS/aarch64/os/images/efiboot.img"
-      cmd = f"wget -N {url}"
+      cmd = f"wget -N {args.efiboot_img}"
       print(read_as_string(cmd.split()))
     mount_path = f"/var/ftp/efibootimg"
     cmd = f"mkdir -p {mount_path}"
