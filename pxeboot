@@ -11,6 +11,7 @@ import common_bf
 import shutil
 import http.server
 import socketserver
+import requests
 
 def read_as_string(cmd):
   with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
@@ -139,10 +140,12 @@ def prepare_pxe(args):
     "mmaa64.efi"]
 
   if not all(map(os.path.exists, rhel_files)):
-    print("Missing boot files, downloading efiboot.img from RHEL-8.4")
+    print("Missing boot files")
     if not os.path.exists("efiboot.img"):
-      cmd = f"wget -N {args.efiboot_img}"
-      print(read_as_string(cmd.split()))
+      print(f"Downloading bootfiles from {args.efiboot_img}")
+      response = requests.get(args.efiboot_img)
+      open("efiboot.img", "wb").write(response.content)
+
     mount_path = f"/var/ftp/efibootimg"
     cmd = f"mkdir -p {mount_path}"
     print(read_as_string(cmd.split()))
@@ -214,7 +217,11 @@ def bf_select_pxe_entry(args):
     print("Found boot interface, sending 'enter'")
     child.send(KEY_ENTER)
     time.sleep(1)
+    print("Waiting 300 sec for EFI stub message")
+    child.expect("EFI stub: Exiting boot services and installing virtual address map...", timeout=300)
+    time.sleep(1)
   child.close()
+  print("Closing minicom")
 
 def run(cmd):
   cmd = cmd.split()
