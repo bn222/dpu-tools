@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-import argparse, os, sys, subprocess
+import argparse
+import os
+import signal
+import sys
+import subprocess
 from posixpath import dirname
 from multiprocessing import Process
 import pexpect
@@ -13,9 +17,25 @@ import http.server
 import socketserver
 import requests
 
+
+children = []
+
+def wait_ping(hn):
+  print(f"Waiting for {hn} to respond")
+  while not ping(hn):
+    pass
+
+def ping(hn):
+  ping_cmd = f"timeout 1 ping -4 -c 1 {hn}".split()
+  r = read_as_string(ping_cmd)
+  return r[-1] == 0
+
 def read_as_string(cmd):
   with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
-    return (proc.stdout.read().decode("utf-8"), proc.stderr.read().decode("utf-8"))
+    out = proc.stdout.read().decode("utf-8")
+    err = proc.stderr.read().decode("utf-8")
+    proc.communicate()
+    return (out, err, proc.returncode)
 
 def get_ip(interface):
   output = read_as_string("ip a show".split() + [interface])[0]
@@ -195,12 +215,13 @@ def bf_select_pxe_entry(args):
   child.expect("This is the option.*one adjusts to change.*the language for the.*current system", timeout=3)
   print("pressing down again")
   child.send(KEY_DOWN)
-  print("wainting for Boot manager entry")
+  print("waiting for Boot manager entry")
   child.expect("This selection will.*take you to the Boot.*Manager", timeout=3)
   print("sending enter")
   child.send(KEY_ENTER)
   child.expect("Device Path")
   retry = 30
+  print(f"Trying to find tmfifo pxe boot interface, will retry up to {retry} times")
   while retry:
     child.send(KEY_DOWN)
     time.sleep(0.1)
@@ -208,13 +229,12 @@ def bf_select_pxe_entry(args):
       child.expect("MAC.001ACAFFFF..,0x1.*IPv4.0.0.0.0.", timeout=1)
       break
     except:
-      print(f"didn't find tmfifo pxe boot interface, will retry {retry} more times")
       retry -= 1
   if not retry:
     print("Didn't find boot interface")
     sys.exit(-1)
   else:
-    print("Found boot interface, sending 'enter'")
+    print(f"Found boot interface after trying {30 - retry} times, sending 'enter'")
     child.send(KEY_ENTER)
     time.sleep(1)
     print("Waiting 300 sec for EFI stub message")
@@ -262,7 +282,7 @@ def wait_and_login(args):
       break
     except paramiko.ssh_exception.NoValidConnectionsError as e:
       print(f"Unable to establish SSH connection: {e}")
-      time.sleep(1)
+      time.sleep(10)
 
   print("BF is up (ssh connection established)")
   local_date = read_as_string("date")[0]
@@ -294,7 +314,6 @@ def try_pxy_boot():
   time.sleep(5)
   read_as_string(("ip a a %s/%s dev %s" % (args.ip, args.net_prefix, args.port)).split())
 
-  children = []
 
   print("starting dhpcd")
   read_as_string("killall dhcpd".split())
@@ -329,6 +348,7 @@ def try_pxy_boot():
   print("selecting pxe entry in bf")
   bf_select_pxe_entry(args)
 
+  wait_ping("172.31.100.11")
   if args.id_rsa:
     ipa = wait_and_login(args)
   else:
@@ -341,7 +361,24 @@ def try_pxy_boot():
   if ipa:
     print(ipa)
 
+def kill_existing():
+  pids = [pid for pid in os.listdir('/proc') if pid.isdigit()]
+
+  own_pid = os.getpid()
+  for pid in filter(lambda x: int(x) != own_pid, pids):
+    try:
+      with open(os.path.join('/proc', pid, 'cmdline'), 'rb') as f:
+        # print(f.read().decode("utf-8"))
+        zb = b'\x00'
+        cmd = [x.decode("utf-8") for x in f.read().strip(zb).split(zb)]
+        if (cmd[0] == 'python3' and os.path.basename(cmd[1]) == 'pxeboot'):
+          print(f"Killing pid {pid}")
+          os.kill(int(pid), signal.SIGKILL)
+    except:
+      pass
+
 def main():
+  kill_existing()
   for retry in range(3):
     try:
       try_pxy_boot()
@@ -349,6 +386,9 @@ def main():
     except Exception as e:
       print(e)
       print(f"pxe boot failed, retrying (count {retry + 1})")
+      for p in children:
+        p.terminate()
+      children.clear()
       pass
 
 if __name__ == "__main__":
