@@ -147,6 +147,8 @@ def prepare_pxe(args):
   pxe_mount = "/var/ftp/mnt"
   cmd = f"mkdir -p {pxe_mount}"
   read_as_string(cmd.split())
+  cmd = f"umount {pxe_mount}"
+  read_as_string(cmd.split())
   cmd = f"mount -t iso9660 -o loop {args.iso} {pxe_mount}"
   read_as_string(cmd.split())
 
@@ -168,6 +170,8 @@ def prepare_pxe(args):
 
     mount_path = f"/var/ftp/efibootimg"
     cmd = f"mkdir -p {mount_path}"
+    print(read_as_string(cmd.split()))
+    cmd = f"umount {mount_path}"
     print(read_as_string(cmd.split()))
     cmd = f"mount efiboot.img {mount_path}"
     print(read_as_string(cmd.split()))
@@ -261,12 +265,13 @@ def split_nfs_path(n):
   return splitted[0], ":".join(splitted[1:])
 
 def mount_nfs_path(arg, mount_path):
-  mount_path = "/mnt/iso"
   if not os.path.exists(mount_path):
     os.mkdir(mount_path)
   ip, path = split_nfs_path(arg)
+
   print(f"mounting {ip}:{os.path.dirname(path)} at {mount_path}")
-  os.system(f"mount {ip}:{os.path.dirname(path)} {mount_path}")
+  read_as_string(f"umount {mount_path}".split())
+  read_as_string(f"mount {ip}:{os.path.dirname(path)} {mount_path}".split())
   return os.path.join(mount_path, os.path.basename(path))
 
 def wait_and_login(args):
@@ -334,7 +339,7 @@ def try_pxy_boot():
   if not os.path.exists("/www/initrd.img"):
     shutil.copy(os.path.join(base, "initrd.img"), "/www/initrd.img")
   if not os.path.exists("/www/mnt") and os.path.exists("/var/ftp/mnt/images"):
-    os.system("ln -s /www/mnt /var/ftp/mnt")
+    read_as_string("ln -s /www/mnt /var/ftp/mnt".split())
 
   print("starting http server")
   p = Process(target=http_server)
