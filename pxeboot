@@ -241,8 +241,23 @@ def bf_select_pxe_entry(args):
     print(f"Found boot interface after trying {30 - retry} times, sending 'enter'")
     child.send(KEY_ENTER)
     time.sleep(1)
-    print("Waiting 300 sec for EFI stub message")
-    child.expect("EFI stub: Exiting boot services and installing virtual address map...", timeout=300)
+    max_tries = 10
+    total_time = max_tries * 30
+    print(f"Waiting {total_time} sec for EFI stub message")
+    found, tries = False, 0
+    while tries < max_tries:
+      try:
+        child.expect("EFI stub: Exiting boot services and installing virtual address map...", timeout=30)
+        found = True
+        break
+      except:
+        pass
+      tries += 1
+    if found:
+        print(f"Found EFI sub message after (tried {tries} times)")
+    else:
+        print(f"Didn't find EFI stub message (tried {tries} times)")
+        sys.exit(-1)
     time.sleep(1)
   child.close()
   print("Closing minicom")
