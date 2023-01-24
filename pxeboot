@@ -244,7 +244,7 @@ def bf_select_pxe_entry(args):
     found, tries = False, 0
     while tries < max_tries:
       try:
-        child.expect("EFI stub: Exiting boot services and installing virtual address map...", timeout=30)
+        child.expect("EFI stub: Exiting boot services and i.*", timeout=30)
         found = True
         break
       except:
@@ -299,7 +299,9 @@ def wait_and_login(args):
       break
     except paramiko.ssh_exception.NoValidConnectionsError as e:
       print(f"Unable to establish SSH connection: {e}")
-      time.sleep(10)
+    except Excetion as e:
+      print(f"Got exception {e}")
+    time.sleep(10)
 
   print("BF is up (ssh connection established)")
   local_date = read_as_string("date")[0]
