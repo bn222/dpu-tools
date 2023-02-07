@@ -2,17 +2,22 @@
 
 import common_bf
 import argparse
-import os
+import requests
+
 
 def main():
-  parser = argparse.ArgumentParser(description='Downloads BFB images and sends it to the BF-2.')
-  parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
-  args = parser.parse_args()
-  bf_pci = common_bf.find_bf2_pci_addresses_or_quit(args.id)
-  BFB_IMAGE="DOCA_1.5.1_BSP_3.9.3_Ubuntu_20.04-4.2211-LTS.signed.bfb"
-  os.system(f"wget -c https://content.mellanox.com/BlueField/BFBs/Ubuntu20.04/{BFB_IMAGE}")
-  fn = f"/dev/rshim{args.id//2}/boot"
-  os.system(f"cat {BFB_IMAGE} > {fn}")
+    parser = argparse.ArgumentParser(description='Downloads BFB images and sends it to the BF-2.')
+    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
+    args = parser.parse_args()
+    _ = common_bf.find_bf2_pci_addresses_or_quit(args.id)
+
+    bfb_image = "DOCA_1.5.1_BSP_3.9.3_Ubuntu_20.04-4.2211-LTS.signed.bfb"
+    bfb_url = f"https://content.mellanox.com/BlueField/BFBs/Ubuntu20.04/{bfb_image}"
+    r = requests.get(bfb_url)
+    fn = f"/dev/rshim{args.id//2}/boot"
+    with open(fn, "wb") as f:
+        f.write(r.content)
+
 
 if __name__ == "__main__":
-  main()
+    main()
