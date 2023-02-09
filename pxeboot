@@ -22,12 +22,16 @@ def exit(code):
     p.terminate()
   sys.exit(code)
 
-def wait_ping(hn):
-  print(f"Waiting for {hn} to respond")
-  while not ping(hn):
-    pass
+def wait_any_ping(hn):
+  print(f"Waiting for response from ping")
+  while True:
+    for e in hn:
+      if ping(e):
+        return e
+    time.sleep(5)
 
 def ping(hn):
+  print(f"ping {hn}")
   ping_cmd = f"timeout 1 ping -4 -c 1 {hn}".split()
   r = read_as_string(ping_cmd)
   return r[-1] == 0
@@ -289,7 +293,7 @@ def mount_nfs_path(arg, mount_path):
   read_as_string(f"mount {ip}:{os.path.dirname(path)} {mount_path}".split())
   return os.path.join(mount_path, os.path.basename(path))
 
-def wait_and_login(args):
+def wait_and_login(args, ip):
   with open(args.id_rsa, "r") as f:
     id_rsa = f.read().strip()
 
@@ -298,7 +302,7 @@ def wait_and_login(args):
       host = paramiko.SSHClient()
       host.set_missing_host_key_policy(paramiko.AutoAddPolicy())
       pkey = paramiko.RSAKey.from_private_key(io.StringIO(id_rsa))
-      host.connect("172.31.100.11", username = 'core', pkey = pkey)
+      host.connect(ip, username = 'core', pkey = pkey)
       break
     except paramiko.ssh_exception.NoValidConnectionsError as e:
       print(f"Unable to establish SSH connection: {e}")
@@ -370,9 +374,10 @@ def try_pxy_boot():
   print("selecting pxe entry in bf")
   bf_select_pxe_entry(args)
 
-  wait_ping("172.31.100.11")
+  response_ip = wait_any_ping(list(f"172.31.100.{x}" for x in range(10, 21)))
+  print(f"got response from {response_ip}")
   if args.id_rsa:
-    ipa = wait_and_login(args)
+    ipa = wait_and_login(args, response_ip)
   else:
     ipa = None
     # avoid killing services to allow booting
@@ -383,6 +388,7 @@ def try_pxy_boot():
     e.terminate()
   if ipa:
     print(ipa)
+  return response_ip
 
 def kill_existing():
   pids = [pid for pid in os.listdir('/proc') if pid.isdigit()]
