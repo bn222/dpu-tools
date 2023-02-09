@@ -299,7 +299,7 @@ def wait_and_login(args):
       break
     except paramiko.ssh_exception.NoValidConnectionsError as e:
       print(f"Unable to establish SSH connection: {e}")
-    except Excetion as e:
+    except Exception as e:
       print(f"Got exception {e}")
     time.sleep(10)
 
@@ -371,6 +371,7 @@ def try_pxy_boot():
   if args.id_rsa:
     ipa = wait_and_login(args)
   else:
+    ipa = None
     # avoid killing services to allow booting
     time.sleep(1000)
 
