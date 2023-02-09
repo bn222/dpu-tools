@@ -17,6 +17,11 @@ import requests
 
 children = []
 
+def exit(code):
+  for p in children:
+    p.terminate()
+  sys.exit(code)
+
 def wait_ping(hn):
   print(f"Waiting for {hn} to respond")
   while not ping(hn):
@@ -73,7 +78,7 @@ def read_args():
 def validate_args(args):
   if ":/" not in args.iso and not os.path.exists(args.iso):
     print(f"Couldn't read iso file {args.iso}")
-    sys.exit(-1)
+    exit(-1)
 
   common_bf.find_bf2_pci_addresses_or_quit(args.id)
 
@@ -234,7 +239,7 @@ def bf_select_pxe_entry(args):
       retry -= 1
   if not retry:
     print("Didn't find boot interface")
-    sys.exit(-1)
+    exit(-1)
   else:
     print(f"Found boot interface after trying {30 - retry} times, sending 'enter'")
     child.send(KEY_ENTER)
@@ -255,7 +260,7 @@ def bf_select_pxe_entry(args):
         print(f"Found EFI stub message ({tries} tries), kernel is booting")
     else:
         print(f"Didn't find EFI stub message ({tries} times)")
-        sys.exit(-1)
+        exit(-1)
     time.sleep(1)
   child.close()
   print("Closing minicom")
@@ -411,6 +416,7 @@ def main():
         p.terminate()
       children.clear()
       pass
+  exit(0)
 
 if __name__ == "__main__":
   main()
