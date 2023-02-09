@@ -164,11 +164,12 @@ def prepare_pxe(args):
     "mmaa64.efi"]
 
   if not all(map(os.path.exists, rhel_files)):
-    print("Missing boot files")
     if not os.path.exists("efiboot.img"):
-      print(f"Downloading bootfiles from {args.efiboot_img}")
+      print(f"Downloading missing bootfiles from {args.efiboot_img}")
       response = requests.get(args.efiboot_img)
       open("efiboot.img", "wb").write(response.content)
+    else:
+      print("Reusing missing bootfiles")
 
     mount_path = f"/var/ftp/efibootimg"
     os.makedirs(mount_path, exist_ok=True)
@@ -203,7 +204,7 @@ def bf_select_pxe_entry(args):
   print("spawn minicom")
   child = pexpect.spawn(f'minicom --baudrate 115200 --device {rshim_base(args)}/console')
   child.maxread=10000
-  print("waiting 30 sec for the boot countdown to interrupt it and go to bios")
+  print("waiting for the boot countdown to interrupt it and go to bios")
   child.expect("3 seconds remainin", timeout=30)
   print("found countdown, sending 'esc' twice")
   child.send(ESC*2)
