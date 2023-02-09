@@ -149,6 +149,7 @@ def prepare_pxe(args):
   cmd = f"mount -t iso9660 -o loop {args.iso} {pxe_mount}"
   read_as_string(cmd.split())
 
+  time.sleep(10)
   args.is_coreos = os.path.exists("/var/ftp/mnt/coreos")
 
   print(f'{"Coreos" if args.is_coreos else "Rhel"} detected')
