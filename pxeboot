@@ -147,8 +147,7 @@ def prepare_pxe(args):
   read_as_string(("ip a a %s/%s dev %s" % (args.ip, args.net_prefix, args.port)).split())
 
   pxe_mount = "/var/ftp/mnt"
-  cmd = f"mkdir -p {pxe_mount}"
-  read_as_string(cmd.split())
+  os.makedirs(pxe_mount, exist_ok=True)
   cmd = f"umount {pxe_mount}"
   read_as_string(cmd.split())
   cmd = f"mount -t iso9660 -o loop {args.iso} {pxe_mount}"
@@ -172,8 +171,7 @@ def prepare_pxe(args):
       open("efiboot.img", "wb").write(response.content)
 
     mount_path = f"/var/ftp/efibootimg"
-    cmd = f"mkdir -p {mount_path}"
-    print(read_as_string(cmd.split()))
+    os.makedirs(mount_path, exist_ok=True)
     cmd = f"umount {mount_path}"
     print(read_as_string(cmd.split()))
     cmd = f"mount efiboot.img {mount_path}"
@@ -183,8 +181,7 @@ def prepare_pxe(args):
       copy(f"{mount_path}/EFI/BOOT/{file}", "/var/lib/tftpboot/")
 
   ftpboot_pxe_dir_name = f"/var/lib/tftpboot/pxelinux"
-  cmd = "mkdir -p " + ftpboot_pxe_dir_name
-  print(read_as_string(cmd.split()))
+  os.makedirs(ftpboot_pxe_dir_name, exist_ok=True)
   copy(os.path.join(pxe_mount, "images/pxeboot/vmlinuz"), ftpboot_pxe_dir_name)
   copy(os.path.join(pxe_mount, "images/pxeboot/initrd.img"), ftpboot_pxe_dir_name)
   copy(os.path.join(pxe_mount, "images/ignition.img"), ftpboot_pxe_dir_name)
@@ -283,8 +280,7 @@ def split_nfs_path(n):
   return splitted[0], ":".join(splitted[1:])
 
 def mount_nfs_path(arg, mount_path):
-  if not os.path.exists(mount_path):
-    os.mkdir(mount_path)
+  os.makedirs(mount_path, exist_ok=True)
   ip, path = split_nfs_path(arg)
 
   print(f"mounting {ip}:{os.path.dirname(path)} at {mount_path}")
