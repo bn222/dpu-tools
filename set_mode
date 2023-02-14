@@ -4,37 +4,37 @@ import os
 import argparse
 
 def main():
-  parser = argparse.ArgumentParser(description='Reads the current mode of the BF-2.')
-  parser.add_argument('mode', metavar='mode', type=str, help='which mode to set the BF-2 to.')
-  parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
-  args = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Reads the current mode of the BF-2.')
+    parser.add_argument('mode', metavar='mode', type=str, help='which mode to set the BF-2 to.')
+    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
+    args = parser.parse_args()
 
-  bf = common_bf.find_bf2_pci_addresses_or_quit(args.id)
+    bf = common_bf.find_bf2_pci_addresses_or_quit(args.id)
 
-  dpu_mode = {
-    'INTERNAL_CPU_MODEL': 'EMBEDDED_CPU(1)',
-    'INTERNAL_CPU_PAGE_SUPPLIER': 'ECPF(0)',
-    'INTERNAL_CPU_ESWITCH_MANAGER': 'ECPF(0)',
-    'INTERNAL_CPU_IB_VPORT0': 'ECPF(0)',
-    'INTERNAL_CPU_OFFLOAD_ENGINE': 'ENABLED(0)'}
+    dpu_mode = {
+        'INTERNAL_CPU_MODEL': 'EMBEDDED_CPU(1)',
+        'INTERNAL_CPU_PAGE_SUPPLIER': 'ECPF(0)',
+        'INTERNAL_CPU_ESWITCH_MANAGER': 'ECPF(0)',
+        'INTERNAL_CPU_IB_VPORT0': 'ECPF(0)',
+        'INTERNAL_CPU_OFFLOAD_ENGINE': 'ENABLED(0)'}
 
-  nic_mode = {
-    'INTERNAL_CPU_MODEL': 'EMBEDDED_CPU(1)',
-    'INTERNAL_CPU_PAGE_SUPPLIER': 'ECPF(1)',
-    'INTERNAL_CPU_ESWITCH_MANAGER': 'ECPF(1)',
-    'INTERNAL_CPU_IB_VPORT0': 'ECPF(1)',
-    'INTERNAL_CPU_OFFLOAD_ENGINE': 'ENABLED(1)'}
+    nic_mode = {
+        'INTERNAL_CPU_MODEL': 'EMBEDDED_CPU(1)',
+        'INTERNAL_CPU_PAGE_SUPPLIER': 'ECPF(1)',
+        'INTERNAL_CPU_ESWITCH_MANAGER': 'ECPF(1)',
+        'INTERNAL_CPU_IB_VPORT0': 'ECPF(1)',
+        'INTERNAL_CPU_OFFLOAD_ENGINE': 'ENABLED(1)'}
 
-  settings = dpu_mode if args.mode == "dpu" else nic_mode
+    settings = dpu_mode if args.mode == "dpu" else nic_mode
 
-  joined = ""
-  for (k, v) in settings.items():
-    value = v[-3:].strip("()")
-    joined += f"{k}={value} "
-  cmd = f"mstconfig -y -d {bf} s {joined}"
+    joined = ""
+    for (k, v) in settings.items():
+        value = v[-3:].strip("()")
+        joined += f"{k}={value} "
+    cmd = f"mstconfig -y -d {bf} s {joined}"
 
-  os.system(cmd)
+    os.system(cmd)
 
 
 if __name__ == "__main__":
-  main()
+    main()
