@@ -230,8 +230,9 @@ def bf_select_pxe_entry(args):
         except:
             retry -= 1
     if not retry:
-        print("Didn't find boot interface")
-        exit(-1)
+        e = Exception("Didn't find boot interface")
+        print(e)
+        raise e
     else:
         print(f"Found boot interface after trying {30 - retry} times, sending 'enter'")
         child.send(KEY_ENTER)
@@ -251,8 +252,9 @@ def bf_select_pxe_entry(args):
         if found:
             print(f"Found EFI stub message ({tries} tries), kernel is booting")
         else:
-            print(f"Didn't find EFI stub message ({tries} times)")
-            exit(-1)
+            e = Exception(f"Didn't find EFI stub message ({tries} times)")
+            print(e)
+            raise e
         time.sleep(1)
     child.close()
     print("Closing minicom")
