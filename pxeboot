@@ -31,7 +31,6 @@ def wait_any_ping(hn):
         time.sleep(5)
 
 def ping(hn):
-    print(f"ping {hn}")
     ping_cmd = f"timeout 1 ping -4 -c 1 {hn}".split()
     r = read_as_string(ping_cmd)
     return r[-1] == 0
