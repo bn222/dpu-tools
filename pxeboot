@@ -161,7 +161,7 @@ def prepare_pxe(args):
         else:
             print("Reusing missing bootfiles")
 
-        mount_path = f"/var/ftp/efibootimg"
+        mount_path = "/var/ftp/efibootimg"
         os.makedirs(mount_path, exist_ok=True)
         if mount_path in common_bf.run("mount").out:
             print(common_bf.run(f"umount {mount_path}"))
@@ -226,7 +226,7 @@ def bf_select_pxe_entry(args):
         try:
             child.expect("MAC.001ACAFFFF..,0x1.*IPv4.0.0.0.0.", timeout=1)
             break
-        except:
+        except Exception:
             retry -= 1
     if not retry:
         e = Exception("Didn't find boot interface")
@@ -245,7 +245,7 @@ def bf_select_pxe_entry(args):
                 child.expect("EFI stub: Exiting boot services and i.*", timeout=30)
                 found = True
                 break
-            except:
+            except Exception:
                 pass
             tries += 1
         if found:
@@ -292,7 +292,7 @@ def wait_and_login(args, ip):
             host = paramiko.SSHClient()
             host.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             pkey = paramiko.RSAKey.from_private_key(io.StringIO(key))
-            host.connect(ip, username = 'core', pkey = pkey)
+            host.connect(ip, username='core', pkey=pkey)
             break
         except paramiko.ssh_exception.NoValidConnectionsError as e:
             print(f"Unable to establish SSH connection: {e}")
@@ -343,7 +343,7 @@ def try_pxy_boot():
     if not os.path.exists("/www/kickstart.ks"):
         shutil.copy("/kickstart.ks", "/www")
 
-    base = f"/var/lib/tftpboot/pxelinux"
+    base = "/var/lib/tftpboot/pxelinux"
     os.makedirs("/www/", exist_ok=True)
     if not os.path.exists("/www/vmlinuz"):
         shutil.copy(os.path.join(base, "vmlinuz"), "/www/vmlinuz")
@@ -393,7 +393,7 @@ def kill_existing():
                 if (cmd[0] == 'python3' and os.path.basename(cmd[1]) == 'pxeboot'):
                     print(f"Killing pid {pid}")
                     os.kill(int(pid), signal.SIGKILL)
-        except:
+        except Exception:
             pass
 
 def main():
