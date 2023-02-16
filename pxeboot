@@ -32,18 +32,11 @@ def wait_any_ping(hn):
 
 def ping(hn):
     ping_cmd = f"timeout 1 ping -4 -c 1 {hn}".split()
-    r = read_as_string(ping_cmd)
+    r = common_bf.run(ping_cmd)
     return r[-1] == 0
 
-def read_as_string(cmd):
-    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
-        out = proc.stdout.read().decode("utf-8")
-        err = proc.stderr.read().decode("utf-8")
-        proc.communicate()
-        return (out, err, proc.returncode)
-
 def get_ip(interface):
-    output = read_as_string("ip a show".split() + [interface])[0]
+    output = common_bf.run("ip a show".split() + [interface])[0]
     inet_lines = filter(lambda x: x.startswith("    inet"), output.split("\n"))
     inet_lines = map(lambda x: x.strip().split()[1], inet_lines)
     return list(inet_lines)
@@ -143,16 +136,16 @@ def prepare_pxe(args):
     ip = get_ip(args.port)
     if ip and (len(ip) != 1 or ip[0] != "%s/%s" % (args.ip, args.net_prefix)):
         print("The port already has the following ip addresses: %s" % ip)
-        read_as_string("ip a f".split() + [args.port])
+        common_bf.run("ip a f".split() + [args.port])
 
-    read_as_string(("ip a a %s/%s dev %s" % (args.ip, args.net_prefix, args.port)).split())
+    common_bf.run(("ip a a %s/%s dev %s" % (args.ip, args.net_prefix, args.port)).split())
 
     pxe_mount = "/var/ftp/mnt"
     os.makedirs(pxe_mount, exist_ok=True)
     cmd = f"umount {pxe_mount}"
-    read_as_string(cmd.split())
+    common_bf.run(cmd.split())
     cmd = f"mount -t iso9660 -o loop {args.iso} {pxe_mount}"
-    read_as_string(cmd.split())
+    common_bf.run(cmd.split())
 
     time.sleep(10)
     args.is_coreos = os.path.exists("/var/ftp/mnt/coreos")
@@ -175,9 +168,9 @@ def prepare_pxe(args):
         mount_path = f"/var/ftp/efibootimg"
         os.makedirs(mount_path, exist_ok=True)
         cmd = f"umount {mount_path}"
-        print(read_as_string(cmd.split()))
+        print(common_bf.run(cmd.split()))
         cmd = f"mount efiboot.img {mount_path}"
-        print(read_as_string(cmd.split()))
+        print(common_bf.run(cmd.split()))
 
         for file in rhel_files:
             shutil.copy(f"{mount_path}/EFI/BOOT/{file}", "/var/lib/tftpboot/")
@@ -201,7 +194,7 @@ def bf_select_pxe_entry(args):
     KEY_DOWN = '\x1b[B'
     KEY_ENTER = '\r\n'
 
-    read_as_string("pkill -9 minicom".split())
+    common_bf.run("pkill -9 minicom".split())
     print("spawn minicom")
     child = pexpect.spawn(f'minicom --baudrate 115200 --device {rshim_base(args)}/console')
     child.maxread=10000
@@ -266,7 +259,7 @@ def bf_select_pxe_entry(args):
 
 def run(cmd):
     cmd = cmd.split()
-    p = Process(target=read_as_string, args=(cmd,))
+    p = Process(target=common_bf.run, args=(cmd,))
     p.start()
     return p
 
@@ -286,8 +279,8 @@ def mount_nfs_path(arg, mount_path):
     ip, path = split_nfs_path(arg)
 
     print(f"mounting {ip}:{os.path.dirname(path)} at {mount_path}")
-    read_as_string(f"umount {mount_path}".split())
-    read_as_string(f"mount {ip}:{os.path.dirname(path)} {mount_path}".split())
+    common_bf.run(f"umount {mount_path}".split())
+    common_bf.run(f"mount {ip}:{os.path.dirname(path)} {mount_path}".split())
     return os.path.join(mount_path, os.path.basename(path))
 
 def wait_and_login(args, ip):
@@ -308,7 +301,7 @@ def wait_and_login(args, ip):
         time.sleep(10)
 
     print("BF is up (ssh connection established)")
-    local_date = read_as_string("date")[0]
+    local_date = common_bf.run("date")[0]
     print(f"setting date to {local_date}")
     host.exec_command(f"sudo date -s '{local_date}'")
     print("getting ip addresses")
@@ -335,11 +328,11 @@ def try_pxy_boot():
     # need to wait long enough after reboot before setting
     # ip, otherwise it will be removed again
     time.sleep(5)
-    read_as_string(("ip a a %s/%s dev %s" % (args.ip, args.net_prefix, args.port)).split())
+    common_bf.run(("ip a a %s/%s dev %s" % (args.ip, args.net_prefix, args.port)).split())
 
 
     print("starting dhpcd")
-    read_as_string("killall dhcpd".split())
+    common_bf.run("killall dhcpd".split())
     p = run("/usr/sbin/dhcpd -f -cf /etc/dhcp/dhcpd.conf -user dhcpd -group dhcpd")
     children.append(p)
 
@@ -357,7 +350,7 @@ def try_pxy_boot():
     if not os.path.exists("/www/initrd.img"):
         shutil.copy(os.path.join(base, "initrd.img"), "/www/initrd.img")
     if not os.path.exists("/www/mnt") and os.path.exists("/var/ftp/mnt/images"):
-        read_as_string("ln -s /www/mnt /var/ftp/mnt".split())
+        common_bf.run("ln -s /www/mnt /var/ftp/mnt".split())
 
     print("starting http server")
     p = Process(target=http_server)
@@ -365,7 +358,7 @@ def try_pxy_boot():
     children.append(p)
 
     print("starting in.tftpd")
-    read_as_string("killall in.tftpd".split())
+    common_bf.run("killall in.tftpd".split())
     p = run("/usr/sbin/in.tftpd -s -L /var/lib/tftpboot")
     children.append(p)
     print("selecting pxe entry in bf")
