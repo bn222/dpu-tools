@@ -62,9 +62,10 @@ def read_args():
     parser = argparse.ArgumentParser(description='Set up a PXE server on a specific port.')
     parser.add_argument('iso', metavar='iso', type=str, help='iso to use for PXE booting')
     parser.add_argument("-e",  metavar='efiboot_img', dest='efiboot_img', default=url, type=str, help='Specify url to pull efiboot from.')
-    help = ("if id_rsa is specified, the script will log"
-    " in to the BF-2 and run \'ip --json a\' before quitting."
-    " This also means that the script will only block when the BF-2 has booted"
+    help = (
+        "if id_rsa is specified, the script will log in to the BF-2 and"
+        " run \'ip --json a\' before quitting. This also means that the"
+        " script will only block when the BF-2 has booted"
     )
     parser.add_argument("-w",  metavar='id_rsa', dest='id_rsa', default='', type=str, help=help)
     parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
