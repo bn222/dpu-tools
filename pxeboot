@@ -49,9 +49,6 @@ def get_ip(interface):
     inet_lines = map(lambda x: x.strip().split()[1], inet_lines)
     return list(inet_lines)
 
-def copy(src, dst):
-    return read_as_string(["cp", src, dst])
-
 def write_file(fn, contents):
     with open(fn, "w") as f:
         f.write(contents)
@@ -183,13 +180,13 @@ def prepare_pxe(args):
         print(read_as_string(cmd.split()))
 
         for file in rhel_files:
-            copy(f"{mount_path}/EFI/BOOT/{file}", "/var/lib/tftpboot/")
+            shutil.copy(f"{mount_path}/EFI/BOOT/{file}", "/var/lib/tftpboot/")
 
     ftpboot_pxe_dir_name = f"/var/lib/tftpboot/pxelinux"
     os.makedirs(ftpboot_pxe_dir_name, exist_ok=True)
-    copy(os.path.join(pxe_mount, "images/pxeboot/vmlinuz"), ftpboot_pxe_dir_name)
-    copy(os.path.join(pxe_mount, "images/pxeboot/initrd.img"), ftpboot_pxe_dir_name)
-    copy(os.path.join(pxe_mount, "images/ignition.img"), ftpboot_pxe_dir_name)
+    shutil.copy(os.path.join(pxe_mount, "images/pxeboot/vmlinuz"), ftpboot_pxe_dir_name)
+    shutil.copy(os.path.join(pxe_mount, "images/pxeboot/initrd.img"), ftpboot_pxe_dir_name)
+    shutil.copy(os.path.join(pxe_mount, "images/ignition.img"), ftpboot_pxe_dir_name)
 
     fn = "/var/lib/tftpboot/grub.cfg"
     print(f"writing configuration to {fn}")
