@@ -55,18 +55,18 @@ def read_args():
     parser.add_argument('iso', metavar='iso', type=str, help='iso to use for PXE booting')
     parser.add_argument("-e",  metavar='efiboot_img', dest='efiboot_img', default=url, type=str, help='Specify url to pull efiboot from.')
     help = (
-        "if id_rsa is specified, the script will log in to the BF-2 and"
+        "if key is specified, the script will log in to the BF-2 and"
         " run \'ip --json a\' before quitting. This also means that the"
         " script will only block when the BF-2 has booted"
     )
-    parser.add_argument("-w",  metavar='id_rsa', dest='id_rsa', default='', type=str, help=help)
+    parser.add_argument("-w",  metavar='key', dest='key', default='', type=str, help=help)
     parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
 
     args = parser.parse_args()
     args.ip = "172.31.100.1"
     args.net_prefix = "24"
     args.subnet = "172.31.100.0"
-    print(args.id_rsa)
+    print(args.key)
     return args
 
 def validate_args(args):
@@ -286,14 +286,14 @@ def mount_nfs_path(arg, mount_path):
     return os.path.join(mount_path, os.path.basename(path))
 
 def wait_and_login(args, ip):
-    with open(args.id_rsa, "r") as f:
-        id_rsa = f.read().strip()
+    with open(args.key, "r") as f:
+        key= f.read().strip()
 
     while True:
         try:
             host = paramiko.SSHClient()
             host.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            pkey = paramiko.RSAKey.from_private_key(io.StringIO(id_rsa))
+            pkey = paramiko.RSAKey.from_private_key(io.StringIO(key))
             host.connect(ip, username = 'core', pkey = pkey)
             break
         except paramiko.ssh_exception.NoValidConnectionsError as e:
@@ -318,8 +318,8 @@ def try_pxy_boot():
     if ":/" in args.iso:
         args.iso = mount_nfs_path(args.iso, "/mnt/iso")
 
-    if ":/" in args.id_rsa:
-        args.id_rsa = mount_nfs_path(args.id_rsa, "/mnt/id_rsa")
+    if ":/" in args.key:
+        args.key = mount_nfs_path(args.key, "/mnt/key")
 
     args.port = "tmfifo_net0"
     prepare_pxe(args)
