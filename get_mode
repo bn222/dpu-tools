@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import common_bf
-import os
 import argparse
 
 def main():
@@ -22,8 +21,7 @@ def main():
         "INTERNAL_CPU_OFFLOAD_ENGINE"
     ]
     all_cfg = " ".join(cfg)
-    cmd = f"mstconfig -d {bf} q {all_cfg}"
-    ret = common_bf.run(cmd.split()).out
+    ret = common_bf.run(f"mstconfig -d {bf} q {all_cfg}").out
 
     save_next = False
     settings = {}

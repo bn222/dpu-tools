@@ -2,12 +2,12 @@ from collections import namedtuple
 import subprocess
 import os
 import sys
+import shlex
 
 
-def run(cmd, env: dict = os.environ.copy()):
+def run(cmd: str, env: dict = os.environ.copy()):
     Result = namedtuple("Result", "out err returncode")
-    # shlex.split(cmd)
-    args = cmd
+    args = shlex.split(cmd)
     pipe = subprocess.PIPE
     with subprocess.Popen(args, stdout=pipe, stderr=pipe, env=env) as proc:
         out = proc.stdout.read().decode("utf-8")
@@ -17,7 +17,7 @@ def run(cmd, env: dict = os.environ.copy()):
     return Result(out, err, ret)
 
 def all_interfaces():
-    out = run(["lshw", "-c", "network", "-businfo"]).out
+    out = run("lshw -c network -businfo").out
     ret = {}
     for e in out.split("\n")[2:]:
         e = e.strip()
@@ -45,7 +45,7 @@ def find_bf2_pci_addresses_or_quit(bf_id):
     return bf_pci[bf_id]
 
 def mst_flint(pci):
-    out = run(["mstflint", "-d", pci, "q"]).out
+    out = run(f"mstflint -d {pci} q").out
     ret = {}
     for e in out.split("\n"):
         e = e.strip()
