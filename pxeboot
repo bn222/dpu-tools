@@ -140,11 +140,11 @@ def prepare_pxe(args):
 
     common_bf.run(("ip a a %s/%s dev %s" % (args.ip, args.net_prefix, args.port)).split())
 
-    pxe_mount = "/var/ftp/mnt"
-    os.makedirs(pxe_mount, exist_ok=True)
-    cmd = f"umount {pxe_mount}"
+    iso_mount_path = "/var/ftp/mnt"
+    os.makedirs(iso_mount_path, exist_ok=True)
+    cmd = f"umount {iso_mount_path}"
     common_bf.run(cmd.split())
-    cmd = f"mount -t iso9660 -o loop {args.iso} {pxe_mount}"
+    cmd = f"mount -t iso9660 -o loop {args.iso} {iso_mount_path}"
     common_bf.run(cmd.split())
 
     time.sleep(10)
@@ -167,19 +167,24 @@ def prepare_pxe(args):
 
         mount_path = f"/var/ftp/efibootimg"
         os.makedirs(mount_path, exist_ok=True)
-        cmd = f"umount {mount_path}"
-        print(common_bf.run(cmd.split()))
+        if mount_path in common_bf.run("mount").out:
+            cmd = f"umount {mount_path}"
+            print(common_bf.run(cmd.split()))
         cmd = f"mount efiboot.img {mount_path}"
         print(common_bf.run(cmd.split()))
 
         for file in rhel_files:
             shutil.copy(f"{mount_path}/EFI/BOOT/{file}", "/var/lib/tftpboot/")
 
-    ftpboot_pxe_dir_name = f"/var/lib/tftpboot/pxelinux"
+    ftp_files = [
+        "images/pxeboot/vmlinuz",
+        "images/pxeboot/initrd.img",
+        "images/ignition.img"]
+    ftpboot_pxe_dir_name = "/var/lib/tftpboot/pxelinux"
     os.makedirs(ftpboot_pxe_dir_name, exist_ok=True)
-    shutil.copy(os.path.join(pxe_mount, "images/pxeboot/vmlinuz"), ftpboot_pxe_dir_name)
-    shutil.copy(os.path.join(pxe_mount, "images/pxeboot/initrd.img"), ftpboot_pxe_dir_name)
-    shutil.copy(os.path.join(pxe_mount, "images/ignition.img"), ftpboot_pxe_dir_name)
+    for file in ftp_files:
+        src = os.path.join(iso_mount_path, file)
+        shutil.copy(src, ftpboot_pxe_dir_name)
 
     fn = "/var/lib/tftpboot/grub.cfg"
     print(f"writing configuration to {fn}")
@@ -316,10 +321,10 @@ def try_pxy_boot():
     validate_args(args)
 
     if ":/" in args.iso:
-        args.iso = mount_nfs_path(args.iso, "/mnt/iso")
+        args.iso = mount_nfs_path(args.iso, "/mnt/nfs_iso")
 
     if ":/" in args.key:
-        args.key = mount_nfs_path(args.key, "/mnt/key")
+        args.key = mount_nfs_path(args.key, "/mnt/nfs_key")
 
     args.port = "tmfifo_net0"
     prepare_pxe(args)
@@ -368,7 +373,7 @@ def try_pxy_boot():
 
     response_ip = wait_any_ping(list(f"172.31.100.{x}" for x in range(10, 21)))
     print(f"got response from {response_ip}")
-    if args.id_rsa:
+    if args.key:
         ipa = wait_and_login(args, response_ip)
     else:
         ipa = None

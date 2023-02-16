@@ -1,10 +1,20 @@
 from collections import namedtuple
-import subprocess, sys
+import subprocess
+import os
+import sys
 
-def run(cmd):
-    Result = namedtuple("Result", "out err")
-    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
-        return Result(proc.stdout.read().decode("utf-8"), proc.stderr.read().decode("utf-8"))
+
+def run(cmd, env: dict = os.environ.copy()):
+    Result = namedtuple("Result", "out err returncode")
+    # shlex.split(cmd)
+    args = cmd
+    pipe = subprocess.PIPE
+    with subprocess.Popen(args, stdout=pipe, stderr=pipe, env=env) as proc:
+        out = proc.stdout.read().decode("utf-8")
+        err = proc.stderr.read().decode("utf-8")
+        proc.communicate()
+        ret = proc.returncode
+    return Result(out, err, ret)
 
 def all_interfaces():
     out = run(["lshw", "-c", "network", "-businfo"]).out
