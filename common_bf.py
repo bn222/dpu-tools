@@ -35,7 +35,7 @@ def find_bf2_pci_addresses_or_quit(bf_id):
     return bf_pci[bf_id]
 
 def mst_flint(pci):
-    out = run(["mstflint", "-d", pci, "q"])[0]
+    out = run(["mstflint", "-d", pci, "q"]).out
     ret = {}
     for e in out.split("\n"):
         e = e.strip()
