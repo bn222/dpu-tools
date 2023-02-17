@@ -283,6 +283,13 @@ def mount_nfs_path(arg, mount_path):
     common_bf.run(f"mount {ip}:{os.path.dirname(path)} {mount_path}")
     return os.path.join(mount_path, os.path.basename(path))
 
+def get_private_key( key: str ):
+    try:
+        pkey = paramiko.RSAKey.from_private_key(io.StringIO(key))
+    except paramiko.ssh_exception.SSHException:
+        pkey = paramiko.Ed25519Key.from_private_key(io.StringIO(key))
+    return pkey
+
 def wait_and_login(args, ip):
     with open(args.key, "r") as f:
         key= f.read().strip()
@@ -291,7 +298,7 @@ def wait_and_login(args, ip):
         try:
             host = paramiko.SSHClient()
             host.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            pkey = paramiko.RSAKey.from_private_key(io.StringIO(key))
+            pkey = get_private_key(key)
             host.connect(ip, username='core', pkey=pkey)
             break
         except paramiko.ssh_exception.NoValidConnectionsError as e:
