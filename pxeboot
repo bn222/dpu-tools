@@ -33,12 +33,6 @@ def ping(hn):
     ping_cmd = f"timeout 1 ping -4 -c 1 {hn}"
     return common_bf.run(ping_cmd).returncode == 0
 
-def get_ip(interface):
-    output = common_bf.run(f"ip a show {interface}").out
-    inet_lines = filter(lambda x: x.startswith("    inet"), output.split("\n"))
-    inet_lines = map(lambda x: x.strip().split()[1], inet_lines)
-    return list(inet_lines)
-
 def write_file(fn, contents):
     with open(fn, "w") as f:
         f.write(contents)
@@ -131,11 +125,7 @@ def bf_reboot(args):
         f.write("SW_RESET 1")
 
 def prepare_pxe(args):
-    ip = get_ip(args.port)
-    if ip and (len(ip) != 1 or ip[0] != "%s/%s" % (args.ip, args.net_prefix)):
-        print("The port already has the following ip addresses: %s" % ip)
-        common_bf.run(f"ip a f {args.port}")
-
+    common_bf.run(f"ip a f {args.port}")
     common_bf.run(f"ip a a {args.ip}/{args.net_prefix} dev {args.port}")
 
     iso_mount_path = "/var/ftp/mnt"
