@@ -232,7 +232,7 @@ def bf_select_pxe_entry(args):
         found, tries = False, 0
         while tries < max_tries:
             try:
-                child.expect("EFI stub: Exiting boot services and i.*", timeout=30)
+                child.expect("EFI stub: .*", timeout=30)
                 found = True
                 break
             except Exception:
