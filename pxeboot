@@ -16,6 +16,7 @@ import requests
 
 children = []
 
+
 def exit(code):
     for p in children:
         p.terminate()
@@ -39,13 +40,16 @@ def ping(hn):
     ping_cmd = f"timeout 1 ping -4 -c 1 {hn}"
     return common_bf.run(ping_cmd).returncode == 0
 
+
 def write_file(fn, contents):
     with open(fn, "w") as f:
         f.write(contents)
 
+
 def read_file(fn):
     with open(fn, "r") as f:
         return "".join(f.readlines())
+
 
 def read_args():
     url = "http://download.eng.bos.redhat.com/released/rhel-8/RHEL-8/8.4.0/BaseOS/aarch64/os/images/efiboot.img"
@@ -67,12 +71,14 @@ def read_args():
     print(args.key)
     return args
 
+
 def validate_args(args):
     if ":/" not in args.iso and not os.path.exists(args.iso):
         print(f"Couldn't read iso file {args.iso}")
         exit(-1)
 
     common_bf.find_bf2_pci_addresses_or_quit(args.id)
+
 
 def dhcp_config(server_ip, subnet):
     return f"""option space pxelinux;
@@ -100,6 +106,7 @@ subnet {subnet} netmask 255.255.255.0 {{
 
 """
 
+
 def grub_config(base_path, ip, is_coreos):
     if is_coreos:
         opts = f"coreos.live.rootfs_url=http://{ip}/rootfs.img ignition.firstboot ignition.platform.id=metal"
@@ -123,12 +130,15 @@ menuentry 'Reboot' --class red --class gnu-linux --class gnu --class os {{
 }}
 """
 
+
 def rshim_base(args):
     return f"/dev/rshim{args.id//2}/"
+
 
 def bf_reboot(args):
     with open(f"{rshim_base(args)}/misc", "w") as f:
         f.write("SW_RESET 1")
+
 
 def prepare_pxe(args):
     common_bf.run(f"ip a f {args.port}")
@@ -184,15 +194,16 @@ def prepare_pxe(args):
     print(f"writing configuration to {fn}")
     write_file(fn, dhcp_config(args.ip, args.subnet))
 
+
 def bf_select_pxe_entry(args):
-    ESC="\x1b"
+    ESC = "\x1b"
     KEY_DOWN = '\x1b[B'
     KEY_ENTER = '\r\n'
 
     common_bf.run("pkill -9 minicom")
     print("spawn minicom")
     child = pexpect.spawn(f'minicom --baudrate 115200 --device {rshim_base(args)}/console')
-    child.maxread=10000
+    child.maxread = 10000
     print("waiting for the boot countdown to interrupt it and go to bios")
     child.expect("3 seconds remainin", timeout=30)
     print("found countdown, sending 'esc' twice")
@@ -215,7 +226,7 @@ def bf_select_pxe_entry(args):
     child.send(KEY_ENTER)
     child.expect("Device Path")
     retry = 30
-    print(f"Trying to find tmfifo pxe boot interface, will retry up to {retry} times")
+    print(f"Trying up to {retry} times to find tmfifo pxe boot interface")
     while retry:
         child.send(KEY_DOWN)
         time.sleep(0.1)
@@ -229,7 +240,7 @@ def bf_select_pxe_entry(args):
         print(e)
         raise e
     else:
-        print(f"Found boot interface after trying {30 - retry} times, sending 'enter'")
+        print(f"Found boot interface after {30 - retry} tries, sending enter")
         child.send(KEY_ENTER)
         time.sleep(1)
         max_tries = 10
@@ -254,10 +265,12 @@ def bf_select_pxe_entry(args):
     child.close()
     print("Closing minicom")
 
+
 def run(cmd):
     p = Process(target=common_bf.run, args=(cmd,))
     p.start()
     return p
+
 
 def http_server():
     os.chdir("/www")
@@ -266,9 +279,11 @@ def http_server():
     httpd = http.server.HTTPServer(server_address, handler)
     httpd.serve_forever()
 
+
 def split_nfs_path(n):
     splitted = n.split(":")
     return splitted[0], ":".join(splitted[1:])
+
 
 def mount_nfs_path(arg, mount_path):
     os.makedirs(mount_path, exist_ok=True)
@@ -279,16 +294,18 @@ def mount_nfs_path(arg, mount_path):
     common_bf.run(f"mount {ip}:{os.path.dirname(path)} {mount_path}")
     return os.path.join(mount_path, os.path.basename(path))
 
-def get_private_key( key: str ):
+
+def get_private_key(key: str):
     try:
         pkey = paramiko.RSAKey.from_private_key(io.StringIO(key))
     except paramiko.ssh_exception.SSHException:
         pkey = paramiko.Ed25519Key.from_private_key(io.StringIO(key))
     return pkey
 
+
 def wait_and_login(args, ip):
     with open(args.key, "r") as f:
-        key= f.read().strip()
+        key = f.read().strip()
 
     while True:
         try:
@@ -312,6 +329,7 @@ def wait_and_login(args, ip):
     host.close()
     return ipa
 
+
 def try_pxy_boot():
     args = read_args()
     validate_args(args)
@@ -333,15 +351,15 @@ def try_pxy_boot():
     time.sleep(5)
     common_bf.run(f"ip a a {args.ip}/{args.net_prefix} dev {args.port}")
 
-
     print("starting dhpcd")
     common_bf.run("killall dhcpd")
     p = run("/usr/sbin/dhcpd -f -cf /etc/dhcp/dhcpd.conf -user dhcpd -group dhcpd")
     children.append(p)
 
     os.makedirs("/www", exist_ok=True)
-    if not os.path.exists("/www/rootfs.img") and os.path.exists("/var/ftp/mnt/images/pxeboot/rootfs.img"):
-        shutil.copy("/var/ftp/mnt/images/pxeboot/rootfs.img", "/www")
+    src_rootfs = "/var/ftp/mnt/images/pxeboot/rootfs.img"
+    if not os.path.exists("/www/rootfs.img") and os.path.exists(src_rootfs):
+        shutil.copy(src_rootfs, "/www")
 
     if not os.path.exists("/www/kickstart.ks"):
         shutil.copy("/kickstart.ks", "/www")
@@ -383,6 +401,7 @@ def try_pxy_boot():
         print(ipa)
     return response_ip
 
+
 def kill_existing():
     pids = [pid for pid in os.listdir('/proc') if pid.isdigit()]
 
@@ -399,6 +418,7 @@ def kill_existing():
         except Exception:
             pass
 
+
 def main():
     kill_existing()
     for retry in range(3):
@@ -413,6 +433,7 @@ def main():
             children.clear()
             pass
     exit(0)
+
 
 if __name__ == "__main__":
     main()
