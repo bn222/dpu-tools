@@ -21,13 +21,19 @@ def exit(code):
         p.terminate()
     sys.exit(code)
 
-def wait_any_ping(hn):
-    print(f"Waiting for response from ping")
-    while True:
+
+def wait_any_ping(hn, timeout):
+    print("Waiting for response from ping")
+    begin = time.time()
+    end = begin
+    while end - begin < timeout:
         for e in hn:
             if ping(e):
                 return e
         time.sleep(5)
+        end = time.time()
+    raise Exception("No response after {timeout} seconds")
+
 
 def ping(hn):
     ping_cmd = f"timeout 1 ping -4 -c 1 {hn}"
@@ -361,7 +367,7 @@ def try_pxy_boot():
     print("selecting pxe entry in bf")
     bf_select_pxe_entry(args)
 
-    response_ip = wait_any_ping(list(f"172.31.100.{x}" for x in range(10, 21)))
+    response_ip = wait_any_ping(list(f"172.31.100.{x}" for x in range(10, 21)), 180)
     print(f"got response from {response_ip}")
     if args.key:
         ipa = wait_and_login(args, response_ip)
