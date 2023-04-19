@@ -3,6 +3,7 @@
 import common_bf
 import argparse
 import requests
+import time
 
 
 def main():
@@ -15,8 +16,11 @@ def main():
     bfb_url = f"https://content.mellanox.com/BlueField/BFBs/Ubuntu20.04/{bfb_image}"
     r = requests.get(bfb_url)
     fn = f"/dev/rshim{args.id//2}/boot"
+    print("Loading BFB image onto the BF. This will take a while")
+    start = time.time()
     with open(fn, "wb") as f:
         f.write(r.content)
+    print(f"It took {time.time() - start}s to load the BFB image")
 
 
 if __name__ == "__main__":
