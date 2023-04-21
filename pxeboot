@@ -56,6 +56,7 @@ def read_args():
     parser = argparse.ArgumentParser(description='Set up a PXE server on a specific port.')
     parser.add_argument('iso', metavar='iso', type=str, help='iso to use for PXE booting')
     parser.add_argument("-e",  metavar='efiboot_img', dest='efiboot_img', default=url, type=str, help='Specify url to pull efiboot from.')
+    parser.add_argument("-m",  '--wait-minicom', dest='wait_minicom', default=False, action='store_true', help='Instead of running minicom to select pxe entry, just wait indefinitely.')
     help = (
         "if key is specified, the script will log in to the BF-2 and"
         " run \'ip --json a\' before quitting. This also means that the"
@@ -196,6 +197,7 @@ def prepare_pxe(args):
 
 
 def bf_select_pxe_entry(args):
+    print("selecting pxe entry in bf")
     ESC = "\x1b"
     KEY_DOWN = '\x1b[B'
     KEY_ENTER = '\r\n'
@@ -382,8 +384,12 @@ def try_pxy_boot():
     common_bf.run("killall in.tftpd")
     p = run("/usr/sbin/in.tftpd -s -L /var/lib/tftpboot")
     children.append(p)
-    print("selecting pxe entry in bf")
-    bf_select_pxe_entry(args)
+    if args.wait_minicom:
+        print("Entering indefinite wait")
+        while True:
+            time.sleep(1)
+    else:
+        bf_select_pxe_entry(args)
 
     response_ip = wait_any_ping(list(f"172.31.100.{x}" for x in range(10, 21)), 180)
     print(f"got response from {response_ip}")
