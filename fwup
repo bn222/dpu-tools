@@ -54,7 +54,7 @@ def update_bf_firmware(args):
     print("Latest version: %s" % version)
     if common_bf.mst_flint(bf)["FW Version"] == version:
         print(f"currently already on {version}")
-        return 1
+        return 0
 
     d = get_distros(version)
     print("Distros: %s" % d)
