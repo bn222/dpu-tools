@@ -58,12 +58,12 @@ def read_args():
     parser.add_argument("-e",  metavar='efiboot_img', dest='efiboot_img', default=url, type=str, help='Specify url to pull efiboot from.')
     parser.add_argument("-m",  '--wait-minicom', dest='wait_minicom', default=False, action='store_true', help='Instead of running minicom to select pxe entry, just wait indefinitely.')
     help = (
-        "if key is specified, the script will log in to the BF-2 and"
+        "if key is specified, the script will log in to the BF and"
         " run \'ip --json a\' before quitting. This also means that the"
-        " script will only block when the BF-2 has booted"
+        " script will only block when the BF has booted"
     )
     parser.add_argument("-w",  metavar='key', dest='key', default='', type=str, help=help)
-    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
+    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF.')
 
     args = parser.parse_args()
     args.ip = "172.31.100.1"
@@ -78,7 +78,7 @@ def validate_args(args):
         print(f"Couldn't read iso file {args.iso}")
         exit(-1)
 
-    common_bf.find_bf2_pci_addresses_or_quit(args.id)
+    common_bf.find_bf_pci_addresses_or_quit(args.id)
 
 
 def dhcp_config(server_ip, subnet):

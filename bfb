@@ -7,10 +7,10 @@ import time
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Downloads BFB images and sends it to the BF-2.')
-    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
+    parser = argparse.ArgumentParser(description='Downloads BFB images and sends it to the BF.')
+    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF.')
     args = parser.parse_args()
-    _ = common_bf.find_bf2_pci_addresses_or_quit(args.id)
+    _ = common_bf.find_bf_pci_addresses_or_quit(args.id)
 
     bfb_image = "DOCA_1.5.1_BSP_3.9.3_Ubuntu_20.04-4.2211-LTS.signed.bfb"
     bfb_url = f"https://content.mellanox.com/BlueField/BFBs/Ubuntu20.04/{bfb_image}"

@@ -4,10 +4,10 @@ import common_bf
 import argparse
 
 def main():
-    parser = argparse.ArgumentParser(description='Reboots the BF-2.')
-    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
+    parser = argparse.ArgumentParser(description='Reboots the BF.')
+    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF.')
     args = parser.parse_args()
-    bf_pci = common_bf.find_bf2_pci_addresses_or_quit(args.id)
+    bf_pci = common_bf.find_bf_pci_addresses_or_quit(args.id)
     with open(f"/dev/rshim{args.id//2}/misc", "w") as f:
         f.write("SW_RESET 1")
 

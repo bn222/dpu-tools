@@ -9,7 +9,7 @@ def main():
     parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
     args = parser.parse_args()
 
-    bf = common_bf.find_bf2_pci_addresses_or_quit(args.id)
+    bf = common_bf.find_bf_pci_addresses_or_quit(args.id)
 
     dpu_mode = {
         'INTERNAL_CPU_MODEL': 'EMBEDDED_CPU(1)',

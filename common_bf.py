@@ -29,18 +29,18 @@ def all_interfaces():
         ret[pci] = desc
     return ret
 
-def find_bf2_pci_addresses():
+def find_bf_pci_addresses():
     ai = all_interfaces()
-    bfs = [e for e in ai.items() if "BlueField-2" in e[1]]
+    bfs = [e for e in ai.items() if "BlueField" in e[1]]
     return [k.split("@")[1] for k, v in bfs]
 
-def find_bf2_pci_addresses_or_quit(bf_id):
-    bf_pci = find_bf2_pci_addresses()
+def find_bf_pci_addresses_or_quit(bf_id):
+    bf_pci = find_bf_pci_addresses()
     if not bf_pci:
-        print("No BF-2 found")
+        print("No BF found")
         sys.exit(-1)
     if bf_id < 0 or bf_id >= len(bf_pci):
-        print("Invalid ID for BF-2")
+        print("Invalid ID for BF")
         sys.exit(-1)
     return bf_pci[bf_id]
 
@@ -60,3 +60,11 @@ def mst_flint(pci):
         value = value.strip()
         ret[key] = value
     return ret
+
+def bf_version(pci):
+    out = run("lshw -c network -businfo").out
+    for e in out.split("\n"):
+        if not e.startswith(f"pci@{pci}"):
+            continue
+        return int(e.split("BlueField-")[1].split()[0])
+    return None

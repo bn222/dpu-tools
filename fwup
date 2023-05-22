@@ -5,68 +5,73 @@ import requests
 import common_bf
 import argparse
 
-remote_url = "https://downloaders.azurewebsites.net/downloaders/bluefield2_fw_downloader/helper.php"
 
+class RemoteAPI:
+    def __init__(self, bf_version):
+        self._remote_url = f"https://downloaders.azurewebsites.net/downloaders/bluefield{bf_version}_fw_downloader/helper.php"
 
-def get_latest_version():
-    data = {'action': 'get_versions', }
-    response = requests.post(remote_url, data=data)
-    return response.json()["latest"]
+    def get_latest_version(self):
+        data = {'action': 'get_versions', }
+        response = requests.post(self._remote_url, data=data)
+        return response.json()["latest"]
 
+    def get_distros(self, v):
+        data = {
+          'action': 'get_distros',
+          'version': v,
+        }
+        r = requests.post(self._remote_url, data=data)
 
-def get_distros(v):
-    data = {
-      'action': 'get_distros',
-      'version': v,
-    }
-    r = requests.post(remote_url, data=data)
+        return r.json()
 
-    return r.json()
+    def get_os(self, version, distro):
+        data = {
+          'action': 'get_oses',
+          'version': version,
+          'distro': distro,
+        }
+        r = requests.post(self._remote_url, data=data)
+        return r.json()[0]
 
-
-def get_os(version, distro):
-    data = {
-      'action': 'get_oses',
-      'version': version,
-      'distro': distro,
-    }
-    r = requests.post(remote_url, data=data)
-    return r.json()[0]
-
-
-def get_download_info(version, distro, os_param):
-    data = {
-      'action': 'get_download_info',
-      'version': version,
-      'distro': distro,
-      'os': os_param,
-      'arch': 'x64'
-    }
-    r = requests.post(remote_url, data=data)
-    return r.json()
+    def get_download_info(self, version, distro, os_param):
+        data = {
+          'action': 'get_download_info',
+          'version': version,
+          'distro': distro,
+          'os': os_param,
+          'arch': 'x64'
+        }
+        r = requests.post(self._remote_url, data=data)
+        return r.json()
 
 
 def update_bf_firmware(args):
-    bf = common_bf.find_bf2_pci_addresses_or_quit(args.id)
+    bf = common_bf.find_bf_pci_addresses_or_quit(args.id)
     target_psid = common_bf.mst_flint(bf)["PSID"]
+    bf_version = common_bf.bf_version(bf)
+    if bf_version is None:
+        print(f"Couldn't detect Bluefield version on PCI address {bf}")
+        sys.exit(-1)
+    print(f"Bluefield-{bf_version} detected")
 
-    version = get_latest_version()
+    r = RemoteAPI(bf_version)
+    version = r.get_latest_version()
     print("Latest version: %s" % version)
     if common_bf.mst_flint(bf)["FW Version"] == version:
         print(f"currently already on {version}")
         return 0
 
-    d = get_distros(version)
+    d = r.get_distros(version)
     print("Distros: %s" % d)
 
     for e in d:
-        os_param = get_os(version, e)
+        os_param = r.get_os(version, e)
         print(os_param)
 
         if os_param != target_psid:
             continue
 
-        url = get_download_info(version, e, os_param)["files"][0]["url"]
+        url = r.get_download_info(version, e, os_param)["files"][0]["url"]
         print(url)
 
         common_bf.run(f"wget -q {url} -O fw.zip")
@@ -80,8 +85,8 @@ def update_bf_firmware(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Specify the id of the BF-2.Updates the firmware on the BF-2 to the latest avaible one.')
-    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF-2.')
+    parser = argparse.ArgumentParser(description='Specify the id of the BF. Updates the firmware on the BF to the latest avaible one.')
+    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF.')
     args = parser.parse_args()
     r = update_bf_firmware(args)
     sys.exit(r)

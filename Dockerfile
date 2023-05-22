@@ -10,7 +10,7 @@ RUN dnf install -y \
 
 COPY * .
 
-RUN dnf install -y rust cargo && \
+RUN dnf install -y rust cargo rshim-2.0.6-19.g0873acd.el7.x86_64.rpm && \
     dnf clean all && \
     rm -rf /var/cache/* && \
     pip3 install --upgrade pip && \
