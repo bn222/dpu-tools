@@ -12,9 +12,12 @@ def main():
     args = parser.parse_args()
     _ = common_bf.find_bf_pci_addresses_or_quit(args.id)
 
-    bfb_image = "DOCA_1.5.1_BSP_3.9.3_Ubuntu_20.04-4.2211-LTS.signed.bfb"
-    bfb_url = f"https://content.mellanox.com/BlueField/BFBs/Ubuntu20.04/{bfb_image}"
+    bfb_image = "DOCA_2.0.2_BSP_4.0.3_Ubuntu_22.04-8.23-04.prod.bfb"
+    bfb_url = f"https://content.mellanox.com/BlueField/BFBs/Ubuntu22.04/{bfb_image}"
+    print(f"Downloading bfb image from {bfb_url}")
+    start = time.time()
     r = requests.get(bfb_url)
+    print(f"It took {time.time() - start}s to download the BFB image")
     fn = f"/dev/rshim{args.id//2}/boot"
     print("Loading BFB image onto the BF. This will take a while")
     start = time.time()
