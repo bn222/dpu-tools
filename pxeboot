@@ -207,9 +207,9 @@ def bf_select_pxe_entry(args):
     child = pexpect.spawn(f'minicom --baudrate 115200 --device {rshim_base(args)}/console')
     child.maxread = 10000
     print("waiting for the boot countdown to interrupt it and go to bios")
-    child.expect("3 seconds remainin", timeout=30)
+    child.expect("3.*seconds remain", timeout=30)
     print("found countdown, sending 'esc' twice")
-    child.send(ESC*2)
+    child.send(ESC*4)
     time.sleep(1)
     child.close()
     print("respawning minicom")
@@ -430,7 +430,7 @@ def main():
     for retry in range(3):
         try:
             try_pxy_boot()
-            break
+            exit(0)
         except Exception as e:
             print(e)
             print(f"pxe boot failed, retrying (count {retry + 1})")
@@ -438,7 +438,8 @@ def main():
                 p.terminate()
             children.clear()
             pass
-    exit(0)
+    print("pxe boot reached max retries unsuccessfully")
+    exit(-1)
 
 
 if __name__ == "__main__":
