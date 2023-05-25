@@ -19,7 +19,7 @@ def main():
     r = requests.get(bfb_url)
     print(f"It took {time.time() - start}s to download the BFB image")
     fn = f"/dev/rshim{args.id//2}/boot"
-    print("Loading BFB image onto the BF. This will take a while")
+    print(f"Loading BFB image onto the BF using {fn}. This will take a while")
     start = time.time()
     with open(fn, "wb") as f:
         f.write(r.content)

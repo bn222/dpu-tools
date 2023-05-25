@@ -52,7 +52,7 @@ def read_file(fn):
 
 
 def read_args():
-    url = "http://download.eng.bos.redhat.com/released/rhel-8/RHEL-8/8.4.0/BaseOS/aarch64/os/images/efiboot.img"
+    url = "http://download.eng.bos.redhat.com/released/rhel-9/RHEL-9/9.2.0/BaseOS/aarch64/os/images/efiboot.img"
     parser = argparse.ArgumentParser(description='Set up a PXE server on a specific port.')
     parser.add_argument('iso', metavar='iso', type=str, help='iso to use for PXE booting')
     parser.add_argument("-e",  metavar='efiboot_img', dest='efiboot_img', default=url, type=str, help='Specify url to pull efiboot from.')
