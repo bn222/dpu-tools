@@ -137,8 +137,21 @@ def rshim_base(args):
 
 
 def bf_reboot(args):
+    print("Rebooting bf")
     with open(f"{rshim_base(args)}/misc", "w") as f:
         f.write("SW_RESET 1")
+
+
+def get_uefiboot_img(args):
+    print("Ensuring efiboot_img is downloaded or copied to the right place")
+    dst = "efiboot.img"
+    if args.efiboot_img.startswith("http://"):
+        print(f"Downloading efiboot.img from {args.efiboot_img}")
+        response = requests.get(args.efiboot_img)
+        open(dst, "wb").write(response.content)
+    else:
+        print(f"Copying efiboot.img from {args.efiboot_img}")
+        shutil.copy(args.efiboot_img, dst)
 
 
 def prepare_pxe(args):
@@ -162,9 +175,7 @@ def prepare_pxe(args):
 
     if not all(map(os.path.exists, rhel_files)):
         if not os.path.exists("efiboot.img"):
-            print(f"Downloading missing bootfiles from {args.efiboot_img}")
-            response = requests.get(args.efiboot_img)
-            open("efiboot.img", "wb").write(response.content)
+            get_uefiboot_img(args)
         else:
             print("Reusing missing bootfiles")
 
@@ -179,8 +190,10 @@ def prepare_pxe(args):
 
     ftp_files = [
         "images/pxeboot/vmlinuz",
-        "images/pxeboot/initrd.img",
-        "images/ignition.img"]
+        "images/pxeboot/initrd.img"]
+
+    if args.is_coreos:
+        ftp_files.append("images/ignition.img")
     ftpboot_pxe_dir_name = "/var/lib/tftpboot/pxelinux"
     os.makedirs(ftpboot_pxe_dir_name, exist_ok=True)
     for file in ftp_files:
@@ -345,8 +358,8 @@ def try_pxy_boot():
     args.port = "tmfifo_net0"
     prepare_pxe(args)
 
-    print("Rebooting bf")
-    bf_reboot(args)
+    if not args.wait_minicom:
+        bf_reboot(args)
 
     # need to wait long enough after reboot before setting
     # ip, otherwise it will be removed again
