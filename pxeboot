@@ -427,7 +427,7 @@ def kill_existing():
 
 def main():
     kill_existing()
-    for retry in range(3):
+    for retry in range(6):
         try:
             try_pxy_boot()
             exit(0)
