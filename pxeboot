@@ -33,7 +33,7 @@ def wait_any_ping(hn, timeout):
                 return e
         time.sleep(5)
         end = time.time()
-    raise Exception("No response after {timeout} seconds")
+    raise Exception("No response after {end - begin} seconds")
 
 
 def ping(hn):
@@ -206,10 +206,10 @@ def bf_select_pxe_entry(args):
     print("spawn minicom")
     child = pexpect.spawn(f'minicom --baudrate 115200 --device {rshim_base(args)}/console')
     child.maxread = 10000
-    print("waiting for the boot countdown to interrupt it and go to bios")
-    child.expect("3.*seconds remain", timeout=30)
-    print("found countdown, sending 'esc' twice")
-    child.send(ESC*4)
+    print("waiting for instructions to enter UEFI Menu to interrupt and go to bios")
+    child.expect("Press.* enter UEFI Menu.", timeout=30)
+    print("found UEFI prompt, sending 'esc'")
+    child.send(ESC*10)
     time.sleep(1)
     child.close()
     print("respawning minicom")
@@ -245,7 +245,7 @@ def bf_select_pxe_entry(args):
         print(f"Found boot interface after {30 - retry} tries, sending enter")
         child.send(KEY_ENTER)
         time.sleep(1)
-        max_tries = 10
+        max_tries = 20
         total_time = max_tries * 30
         print(f"Waiting {total_time} sec for EFI stub message")
         found, tries = False, 0
@@ -391,7 +391,7 @@ def try_pxy_boot():
     else:
         bf_select_pxe_entry(args)
 
-    response_ip = wait_any_ping(list(f"172.31.100.{x}" for x in range(10, 21)), 180)
+    response_ip = wait_any_ping(list(f"172.31.100.{x}" for x in range(10, 21)), 300)
     print(f"got response from {response_ip}")
     if args.key:
         ipa = wait_and_login(args, response_ip)
