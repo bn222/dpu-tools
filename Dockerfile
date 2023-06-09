@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/ubi
+FROM quay.io/centos/centos:stream9 
 
 RUN dnf install -y \
     rshim minicom python39 lshw mstflint wget unzip expect nfs-utils iproute httpd hwdata \
@@ -8,9 +8,9 @@ RUN dnf install -y \
     ln -s /usr/bin/pip3.9 /usr/bin/pip && \
     ln -s /usr/bin/python3.9 /usr/bin/python
 
-COPY * .
+COPY * /
 
-RUN dnf install -y rust cargo rshim-2.0.6-19.g0873acd.el7.x86_64.rpm && \
+RUN dnf install -y rust cargo python3-pip && \
     dnf clean all && \
     rm -rf /var/cache/* && \
     pip3 install --upgrade pip && \
