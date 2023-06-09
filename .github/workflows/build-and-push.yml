@@ -1,0 +1,35 @@
+name: Build and Push
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build-and-push:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Set date
+      id: date
+      run: echo "::set-output name=date::$(date +'%m-%d-%Y')"
+    - name: Authenticate
+      uses: docker/login-action@v1
+      with:
+        registry: quay.io
+        username: ${{ secrets.QUAY_USERNAME }}
+        password: ${{ secrets.QUAY_PASSWORD }}
+    - name: Build and Push Docker images
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: Dockerfile
+        push: true
+        tags: |
+          quay.io/bnemeth/bf:${{ steps.date.outputs.date }}
+          quay.io/bnemeth/bf:latest
