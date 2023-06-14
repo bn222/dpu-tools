@@ -258,7 +258,14 @@ def bf_select_pxe_entry(args):
         print(f"Found boot interface after {30 - retry} tries, sending enter")
         child.send(KEY_ENTER)
         time.sleep(1)
-        max_tries = 20
+        print(f"Waiting 30 seconds for Station IP address prompt")
+        try:
+            child.expect("Station IP address.*", timeout=30)
+        except Exception:
+            e = Exception("Kernel boot failed to begin")
+            print(e)
+            raise e
+        max_tries = 10
         total_time = max_tries * 30
         print(f"Waiting {total_time} sec for EFI stub message")
         found, tries = False, 0
@@ -406,7 +413,7 @@ def try_pxy_boot():
     else:
         bf_select_pxe_entry(args)
 
-    response_ip = wait_any_ping(list(f"172.31.100.{x}" for x in range(10, 21)), 300)
+    response_ip = wait_any_ping(list(f"172.31.100.{x}" for x in range(10, 21)), 180)
     print(f"got response from {response_ip}")
     if args.key:
         ipa = wait_and_login(args, response_ip)
