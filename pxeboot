@@ -339,6 +339,8 @@ def wait_and_login(args, ip):
     local_date = common_bf.run("date").out
     print(f"setting date to {local_date}")
     host.exec_command(f"sudo date -s '{local_date}'")
+    # TODO: This is a hack to avoid slow DHCP
+    time.sleep(10)
     print("getting ip addresses")
     ipa = host.exec_command("ip --json a")[1].readlines()[0].strip()
     host.close()
