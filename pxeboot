@@ -258,9 +258,10 @@ def bf_select_pxe_entry(args):
         print(f"Found boot interface after {30 - retry} tries, sending enter")
         child.send(KEY_ENTER)
         time.sleep(1)
-        print(f"Waiting 30 seconds for Station IP address prompt")
+        timeout = 30
+        print(f"Waiting {timeout} seconds for Station IP address prompt")
         try:
-            child.expect("Station IP address.*", timeout=30)
+            child.expect("Station IP address.*", timeout=timeout)
         except Exception:
             e = Exception("Kernel boot failed to begin")
             print(e)
