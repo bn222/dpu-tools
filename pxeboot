@@ -4,6 +4,7 @@ import os
 import signal
 import sys
 from multiprocessing import Process
+import threading
 import pexpect
 import paramiko
 import time
@@ -209,6 +210,10 @@ def prepare_pxe(args):
     write_file(fn, dhcp_config(args.ip, args.subnet))
 
 
+def minicom_cmd(args):
+    return f'minicom --baudrate 115200 --device {rshim_base(args)}/console'
+
+
 def bf_select_pxe_entry(args):
     print("selecting pxe entry in bf")
     ESC = "\x1b"
@@ -217,7 +222,7 @@ def bf_select_pxe_entry(args):
 
     common_bf.run("pkill -9 minicom")
     print("spawn minicom")
-    child = pexpect.spawn(f'minicom --baudrate 115200 --device {rshim_base(args)}/console')
+    child = pexpect.spawn(minicom_cmd(args))
     child.maxread = 10000
     print("waiting for instructions to enter UEFI Menu to interrupt and go to bios")
     child.expect("Press.* enter UEFI Menu.", timeout=30)
@@ -226,7 +231,7 @@ def bf_select_pxe_entry(args):
     time.sleep(1)
     child.close()
     print("respawning minicom")
-    child = pexpect.spawn(f'minicom --baudrate 115200 --device {rshim_base(args)}/console')
+    child = pexpect.spawn(minicom_cmd(args))
     time.sleep(1)
     print("pressing down")
     child.send(KEY_DOWN)
@@ -355,6 +360,20 @@ def wait_and_login(args, ip):
     return ipa
 
 
+def capture_minicom(args, stop_event, output):
+    child = pexpect.spawn(minicom_cmd(args))
+
+    while not stop_event.is_set():
+        try:
+            chunk = child.read_nonblocking(size=1024, timeout=1)
+            output.append(chunk)
+        except pexpect.TIMEOUT:
+            pass
+        except pexpect.EOF:
+            print("Minicom exited unexpectedly while capturing output")
+            break
+
+
 def try_pxy_boot():
     args = read_args()
     validate_args(args)
@@ -414,8 +433,28 @@ def try_pxy_boot():
     else:
         bf_select_pxe_entry(args)
 
-    response_ip = wait_any_ping(list(f"172.31.100.{x}" for x in range(10, 21)), 180)
-    print(f"got response from {response_ip}")
+    stop_event = threading.Event()
+    output = []
+    minicom_watch = threading.Thread(target=capture_minicom, args=(args, stop_event, output))
+    minicom_watch.start()
+
+    ping_exception = None
+    try:
+        candidates = list(f"172.31.100.{x}" for x in range(10, 21))
+        response_ip = wait_any_ping(candidates, 180)
+        print(f"got response from {response_ip}")
+    except Exception as e:
+        ping_exception = e
+        # keep linter happy
+        response_ip = ''
+    stop_event.set()
+    minicom_watch.join()
+    output = b''.join(output)
+    output_str = output.decode('utf-8', errors='replace')
+    print(output_str)
+    if ping_exception is not None:
+        raise ping_exception
+
     if args.key:
         ipa = wait_and_login(args, response_ip)
     else:
