@@ -352,13 +352,6 @@ def wait_and_login(args, ip):
     local_date = common_bf.run("date").out
     print(f"setting date to {local_date}")
     host.exec_command(f"sudo date -s '{local_date}'")
-    # TODO: This is a hack to avoid slow DHCP
-    time.sleep(10)
-    print("getting ip addresses")
-    ipa = host.exec_command("ip --json a")[1].readlines()[0].strip()
-    host.close()
-    return ipa
-
 
 def capture_minicom(args, stop_event, output):
     child = pexpect.spawn(minicom_cmd(args))
@@ -456,17 +449,15 @@ def try_pxy_boot():
         raise ping_exception
 
     if args.key:
-        ipa = wait_and_login(args, response_ip)
+        wait_and_login(args, response_ip)
     else:
-        ipa = None
         # avoid killing services to allow booting
         time.sleep(1000)
 
     print("Terminating http, ftp, and dhcpd")
     for e in children:
         e.terminate()
-    if ipa:
-        print(ipa)
+    print(response_ip)
     return response_ip
 
 
