@@ -19,6 +19,7 @@ RUN dnf install -y rust cargo python3-pip && \
     pip3 install pyasn1 && \
     pip3 install pynacl && \
     pip3 install requests && \
+    pip3 install pexpect && \
     pip3 install paramiko>=2.12.0
 
 RUN echo "echo 'running rshim'; rshim; sleep infinity" > rshim.sh && chmod +x rshim.sh
