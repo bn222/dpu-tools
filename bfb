@@ -17,13 +17,13 @@ def main():
     print(f"Downloading bfb image from {bfb_url}")
     start = time.time()
     r = requests.get(bfb_url)
-    print(f"It took {time.time() - start}s to download the BFB image")
+    print(f"It took {round(time.time() - start, 2)}s to download the BFB image")
     fn = f"/dev/rshim{args.id//2}/boot"
     print(f"Loading BFB image onto the BF using {fn}. This will take a while")
     start = time.time()
     with open(fn, "wb") as f:
         f.write(r.content)
-    print(f"It took {time.time() - start}s to load the BFB image")
+    print(f"It took {round(time.time() - start, 2)}s to load the BFB image")
 
 
 if __name__ == "__main__":

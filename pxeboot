@@ -34,7 +34,7 @@ def wait_any_ping(hn, timeout):
                 return e
         time.sleep(5)
         end = time.time()
-    raise Exception(f"No response after {end - begin} seconds")
+    raise Exception(f"No response after {round(end - begin, 2)}s")
 
 
 def ping(hn):
