@@ -8,8 +8,6 @@ RUN dnf install -y \
     ln -s /usr/bin/pip3.9 /usr/bin/pip && \
     ln -s /usr/bin/python3.9 /usr/bin/python
 
-COPY * /
-
 RUN dnf install -y rust cargo python3-pip && \
     dnf clean all && \
     rm -rf /var/cache/* && \
@@ -21,6 +19,8 @@ RUN dnf install -y rust cargo python3-pip && \
     pip3 install requests && \
     pip3 install pexpect && \
     pip3 install paramiko>=2.12.0
+
+COPY * /
 
 RUN echo "echo 'running rshim'; rshim; sleep infinity" > rshim.sh && chmod +x rshim.sh
 ENTRYPOINT /rshim.sh
