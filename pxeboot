@@ -120,7 +120,7 @@ def grub_config(base_path, ip, is_coreos):
     return f"""
   set timeout=5
 
-menuentry 'Install' --class red --class gnu-linux --class gnu --class os {{
+menuentry 'Install RHCOS' --class red --class gnu-linux --class gnu --class os {{
     linux {base_path}/vmlinuz showopts {opts} \
         console=tty0 console=tty1 console=ttyS0,115200 console=ttyS1,115200 \
         ip=dhcp console=ttyAMA1 console=hvc0 console=ttyAMA0 earlycon=pl011,0x01000000
@@ -271,6 +271,15 @@ def bf_select_pxe_entry(args):
             e = Exception("Kernel boot failed to begin")
             print(e)
             raise e
+
+        print(f"Waiting {timeout} seconds for RHCOS grub")
+        try:
+            child.expect(".*Install RHCOS.*", timeout=timeout)
+        except Exception:
+            e = Exception("Kernel boot failed to begin")
+            print(e)
+            raise e
+
         max_tries = 10
         total_time = max_tries * 30
         print(f"Waiting {total_time} sec for EFI stub message")
