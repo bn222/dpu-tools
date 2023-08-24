@@ -10,7 +10,7 @@ sudo podman run --pull always --replace --pid host --network host --user 0 --nam
 All the tools can directly be ran inside the container. All the tools automatically find and act on the first BF in the system.
 
 ```
-sudo podman exec -it bf <TOOL_NAME>
+sudo podman exec -it bf /<TOOL_NAME>
 ```
 
 | Tool         | Purpose                                                                                  |
