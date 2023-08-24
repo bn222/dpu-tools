@@ -214,6 +214,29 @@ def minicom_cmd(args):
     return f'minicom --baudrate 115200 --device {rshim_base(args)}/console'
 
 
+def pexpect_child_wait(child, pattern, timeout):
+    print(f"Waiting {timeout} sec for pattern '{pattern}'")
+    start_time = time.time()
+    found = False
+    last_exception = None
+    while timeout and not found:
+        cur_wait = min(timeout, 30)
+        try:
+            last_exception = None
+            child.expect(pattern, timeout=cur_wait)
+            found = True
+            break
+        except Exception as e:
+            last_exception = e
+            timeout -= cur_wait
+            pass
+
+    if not found:
+        assert last_exception
+        raise last_exception
+    return round(time.time() - start_time, 2)
+
+
 def bf_select_pxe_entry(args):
     print("selecting pxe entry in bf")
     ESC = "\x1b"
@@ -225,7 +248,7 @@ def bf_select_pxe_entry(args):
     child = pexpect.spawn(minicom_cmd(args))
     child.maxread = 10000
     print("waiting for instructions to enter UEFI Menu to interrupt and go to bios")
-    child.expect("Press.* enter UEFI Menu.", timeout=30)
+    pexpect_child_wait(child, "Press.* enter UEFI Menu.", 60)
     print("found UEFI prompt, sending 'esc'")
     child.send(ESC*10)
     time.sleep(1)
@@ -283,21 +306,8 @@ def bf_select_pxe_entry(args):
         max_tries = 10
         total_time = max_tries * 30
         print(f"Waiting {total_time} sec for EFI stub message")
-        found, tries = False, 0
-        while tries < max_tries:
-            try:
-                child.expect("EFI stub: .*", timeout=30)
-                found = True
-                break
-            except Exception:
-                pass
-            tries += 1
-        if found:
-            print(f"Found EFI stub message ({tries} tries), kernel is booting")
-        else:
-            e = Exception(f"Didn't find EFI stub message ({tries} times)")
-            print(e)
-            raise e
+        elapsed = pexpect_child_wait(child, "EFI stub: .*", total_time)
+        print(f"Found EFI stub message after {elapsed}s, kernel is booting")
         time.sleep(1)
     child.close()
     print("Closing minicom")
