@@ -248,7 +248,7 @@ def bf_select_pxe_entry(args):
     child = pexpect.spawn(minicom_cmd(args))
     child.maxread = 10000
     print("waiting for instructions to enter UEFI Menu to interrupt and go to bios")
-    pexpect_child_wait(child, "Press.* enter UEFI Menu.", 60)
+    pexpect_child_wait(child, "Press.* enter UEFI Menu.", 120)
     print("found UEFI prompt, sending 'esc'")
     child.send(ESC*10)
     time.sleep(1)
