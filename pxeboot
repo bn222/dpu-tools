@@ -427,7 +427,7 @@ def try_pxy_boot():
     if not os.path.exists("/www/initrd.img"):
         shutil.copy(os.path.join(base, "initrd.img"), "/www/initrd.img")
     if not os.path.exists("/www/mnt") and os.path.exists("/var/ftp/mnt/images"):
-        common_bf.run("ln -s /www/mnt /var/ftp/mnt")
+        common_bf.run("ln -s /var/ftp/mnt /www/mnt")
 
     print("starting http server")
     p = Process(target=http_server)
