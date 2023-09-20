@@ -2,7 +2,7 @@
 import common_bf
 
 def main():
-    bf2s = common_bf.find_bf2_pci_addresses()
+    bf2s = common_bf.find_bf_pci_addresses()
     print("ID     PCI-Address")
     print("-----  ------------")
     for (i, e) in enumerate(bf2s):
