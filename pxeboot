@@ -248,7 +248,7 @@ def bf_select_pxe_entry(args):
     child = pexpect.spawn(minicom_cmd(args))
     child.maxread = 10000
     print("waiting for instructions to enter UEFI Menu to interrupt and go to bios")
-    pexpect_child_wait(child, "Press.* enter UEFI Menu.", 60)
+    pexpect_child_wait(child, "Press.* enter UEFI Menu.", 120)
     print("found UEFI prompt, sending 'esc'")
     child.send(ESC*10)
     time.sleep(1)
@@ -427,7 +427,7 @@ def try_pxy_boot():
     if not os.path.exists("/www/initrd.img"):
         shutil.copy(os.path.join(base, "initrd.img"), "/www/initrd.img")
     if not os.path.exists("/www/mnt") and os.path.exists("/var/ftp/mnt/images"):
-        common_bf.run("ln -s /www/mnt /var/ftp/mnt")
+        common_bf.run("ln -s /var/ftp/mnt /www/mnt")
 
     print("starting http server")
     p = Process(target=http_server)
