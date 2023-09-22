@@ -8,7 +8,7 @@ text
 keyboard us
 
 # Use network installation
-url --url="REPO_URL"
+url --url="NETWORK_INSTALL_URL"
 
 # Accept the license
 eula --agreed
@@ -17,7 +17,7 @@ eula --agreed
 timezone --utc Asia/Jerusalem
 
 # Root password
-rootpw bluefield
+rootpw redhat
 
 # Disable firewall
 firewall --disabled

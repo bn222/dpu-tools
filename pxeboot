@@ -15,6 +15,7 @@ import http.server
 import requests
 
 
+install_entry = "Install OS"
 children = []
 
 
@@ -120,10 +121,11 @@ def grub_config(base_path, ip, is_coreos):
     return f"""
   set timeout=5
 
-menuentry 'Install RHCOS' --class red --class gnu-linux --class gnu --class os {{
+menuentry '{install_entry}' --class red --class gnu-linux --class gnu --class os {{
     linux {base_path}/vmlinuz showopts {opts} \
         console=tty0 console=tty1 console=ttyS0,115200 console=ttyS1,115200 \
-        ip=dhcp console=ttyAMA1 console=hvc0 console=ttyAMA0 earlycon=pl011,0x01000000
+        ip=dhcp console=ttyAMA1 console=hvc0 \
+        console=ttyAMA0 earlycon=pl011,0x01000000
     initrd {base_path}/initrd.img {ign_opts}
 }}
 
@@ -155,6 +157,10 @@ def get_uefiboot_img(args):
         shutil.copy(args.efiboot_img, dst)
 
 
+def os_name(is_coreos):
+    return "CoreOS" if is_coreos else "RHEL"
+
+
 def prepare_pxe(args):
     common_bf.run(f"ip a f {args.port}")
     common_bf.run(f"ip a a {args.ip}/{args.net_prefix} dev {args.port}")
@@ -167,7 +173,7 @@ def prepare_pxe(args):
     time.sleep(10)
     args.is_coreos = os.path.exists("/var/ftp/mnt/coreos")
 
-    print(f'{"Coreos" if args.is_coreos else "Rhel"} detected')
+    print(f'{os_name(args.is_coreos)} detected')
 
     rhel_files = [
         "BOOTAA64.EFI",
@@ -295,9 +301,9 @@ def bf_select_pxe_entry(args):
             print(e)
             raise e
 
-        print(f"Waiting {timeout} seconds for RHCOS grub")
+        print(f"Waiting {timeout} seconds for grub")
         try:
-            child.expect(".*Install RHCOS.*", timeout=timeout)
+            child.expect(f".*{install_entry}.*", timeout=timeout)
         except Exception:
             e = Exception("Kernel boot failed to begin")
             print(e)
@@ -372,6 +378,7 @@ def wait_and_login(args, ip):
     print(f"setting date to {local_date}")
     host.exec_command(f"sudo date -s '{local_date}'")
 
+
 def capture_minicom(args, stop_event, output):
     child = pexpect.spawn(minicom_cmd(args))
 
@@ -384,6 +391,25 @@ def capture_minicom(args, stop_event, output):
         except pexpect.EOF:
             print("Minicom exited unexpectedly while capturing output")
             break
+
+
+def prepare_kickstart(ip):
+    ks = "kickstart.ks"
+    dst = os.path.join("/www", ks)
+    if os.path.exists(dst):
+        os.remove(dst)
+
+    shutil.copy(f"/{ks}", dst)
+
+    with open(dst, 'r') as file:
+        file_content = file.read()
+
+    find_text = "NETWORK_INSTALL_URL"
+    replace_text = f"http://{ip}/mnt"
+    updated_content = file_content.replace(find_text, replace_text)
+
+    with open(dst, 'w') as file:
+        file.write(updated_content)
 
 
 def try_pxy_boot():
@@ -401,6 +427,8 @@ def try_pxy_boot():
 
     if not args.wait_minicom:
         bf_reboot(args)
+    else:
+        print("Skipping BF reboot since not using minicom")
 
     # need to wait long enough after reboot before setting
     # ip, otherwise it will be removed again
@@ -417,8 +445,7 @@ def try_pxy_boot():
     if not os.path.exists("/www/rootfs.img") and os.path.exists(src_rootfs):
         shutil.copy(src_rootfs, "/www")
 
-    if not os.path.exists("/www/kickstart.ks"):
-        shutil.copy("/kickstart.ks", "/www")
+    prepare_kickstart(args.ip)
 
     base = "/var/lib/tftpboot/pxelinux"
     os.makedirs("/www/", exist_ok=True)
