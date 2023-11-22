@@ -1,5 +1,5 @@
 # Installing RHEL on BlueField-2
-Welcome to this guide on installing Red Hat Enterprise Linux (RHEL) on the NVIDIA BlueField-2 Data Processing Unit (DPU). The BlueField-2 combines the capabilities of a Network Interface Card (NIC) with a general-purpose CPU, making it a versatile platform for running various applications. This article will guide you through the process of setting up RHEL on the BlueField-2 using the rshim interface and a PXE server on the host machine. Note that it requires to run specific steps at the right time. 
+Welcome to this guide on installing Red Hat Enterprise Linux (RHEL) on the NVIDIA BlueField-2 Data Processing Unit (DPU). The BlueField-2 combines the capabilities of a Network Interface Card (NIC) with a general-purpose CPU, making it a versatile platform for running various applications. This article will guide you through the process of setting up RHEL on the BlueField-2 using the rshim interface and a PXE server on the host machine. Note that it requires to run specific steps at the right time.
 # Overview of the Setup
 
 When it comes to installing RHEL on the BlueField-2, a PXE server can be set up either on the network or on the host machine itself. The advantage of choosing the latter option is that you won't need to configure your network in any specific way. This self-contained approach simplifies the setup process, making it more accessible and user-friendly. The diagram below shows the setup.
@@ -49,7 +49,7 @@ menuentry 'Install' --class red --class gnu-linux --class gnu --class os {{
     linux pxelinux/vmlinuz showopts inst.repo=http://172.131.100.1/mnt inst.ks=http://172.131.100.1/kickstart.ks \
         console=tty0 console=tty1 console=ttyS0,115200 console=ttyS1,115200 \
         ip=dhcp console=ttyAMA1 console=hvc0 console=ttyAMA0 earlycon=pl011,0x01000000
-    initrd pxelinux/initrd.img 
+    initrd pxelinux/initrd.img
 }}
 
 menuentry 'Reboot' --class red --class gnu-linux --class gnu --class os {{
@@ -76,8 +76,8 @@ always-broadcast on;
 filename "/BOOTAA64.EFI";
 
 subnet 172.131.100.0 netmask 255.255.255.0 {{
-    range 172.31.100.10 172.31.100.20;
-    option broadcast-address 172.31.100.255;
+    range 172.131.100.10 172.131.100.20;
+    option broadcast-address 172.131.100.255;
     option routers 172.131.100.1;
     option domain-name-servers <INSERT COMMA SEPARATED LIST OF DNS SERVERS HERE>;
     option domain-search "<INSERT DOMAIN HERE>";
@@ -184,7 +184,7 @@ hwclock --systohc --localtime
 %end
 ```
 
-Next, reboot the BF, wait 5 seconds, add an IP on the tmfifo interface and connect to the console through minicom to interrupt the boot process. 
+Next, reboot the BF, wait 5 seconds, add an IP on the tmfifo interface and connect to the console through minicom to interrupt the boot process.
 
 
 ```bash
@@ -199,7 +199,7 @@ Once interrupted, start the tftp server and the http server:
 
 ```bash
 /usr/sbin/in.tftpd -s -L /var/lib/tftpboot
-cd /www; python -m http.server 
+cd /www; python -m http.server
 ```
 
 On the console, select the option to boot from the interface that has a mac address that starts with 001ACAFFFF. RHEL should boot and the installation should proceed automatically.
