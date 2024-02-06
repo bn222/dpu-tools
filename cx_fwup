@@ -1,0 +1,12 @@
+#!/bin/env python3
+
+import os, sys
+
+def main():
+    os.system("chmod +x mlxup")
+    r = os.system("/mlxup -y")
+    sys.exit(r)
+
+
+if __name__ == "__main__":
+    main()
