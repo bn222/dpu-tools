@@ -19,6 +19,8 @@ RUN dnf install -y rust cargo python3-pip && \
     pip3 install requests && \
     pip3 install paramiko>=2.12.0
 
+RUN wget https://www.mellanox.com/downloads/firmware/mlxup/4.26.0/SFX/linux_x64/mlxup
+
 COPY * /
 
 RUN echo "echo 'running rshim'; rshim; sleep infinity" > rshim.sh && chmod +x rshim.sh
