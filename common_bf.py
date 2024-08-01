@@ -1,15 +1,18 @@
+import dataclasses
 import os
 import shlex
 import subprocess
 import sys
 
-from collections import namedtuple
+
+@dataclasses.dataclass(frozen=True)
+class Result:
+    out: str
+    err: str
+    returncode: int
 
 
-Result = namedtuple("Result", "out err returncode")
-
-
-def run(cmd: str, env: dict = os.environ.copy()):
+def run(cmd: str, env: dict[str, str] = os.environ.copy()) -> Result:
     args = shlex.split(cmd)
     res = subprocess.run(
         args,
@@ -18,9 +21,9 @@ def run(cmd: str, env: dict = os.environ.copy()):
     )
 
     return Result(
-        res.stdout.decode("utf-8"),
-        res.stderr.decode("utf-8"),
-        res.returncode,
+        out=res.stdout.decode("utf-8"),
+        err=res.stderr.decode("utf-8"),
+        returncode=res.returncode,
     )
 
 
