@@ -12,23 +12,25 @@ import signal
 import sys
 import threading
 import time
+import typing
 
 from multiprocessing import Process
+from typing import Union
 
 import common_bf
 
 
 install_entry = "Install OS"
-children = []
+children: list[Process] = []
 
 
-def exit(code):
+def exit(code: int) -> typing.NoReturn:
     for p in children:
         p.terminate()
     sys.exit(code)
 
 
-def wait_any_ping(hn, timeout):
+def wait_any_ping(hn: list[str], timeout: float) -> str:
     print("Waiting for response from ping")
     begin = time.time()
     end = begin
@@ -41,22 +43,22 @@ def wait_any_ping(hn, timeout):
     raise Exception(f"No response after {round(end - begin, 2)}s")
 
 
-def ping(hn):
+def ping(hn: str) -> bool:
     ping_cmd = f"timeout 1 ping -4 -c 1 {hn}"
     return common_bf.run(ping_cmd).returncode == 0
 
 
-def write_file(fn, contents):
+def write_file(fn: str, contents: str) -> None:
     with open(fn, "w") as f:
         f.write(contents)
 
 
-def read_file(fn):
+def read_file(fn: str) -> str:
     with open(fn, "r") as f:
         return "".join(f.readlines())
 
 
-def read_args():
+def read_args() -> argparse.Namespace:
     url = "http://download.eng.brq.redhat.com/released/rhel-9/RHEL-9/9.2.0/BaseOS/aarch64/os/images/efiboot.img"
     parser = argparse.ArgumentParser(
         description="Set up a PXE server on a specific port."
@@ -106,7 +108,7 @@ def read_args():
     return args
 
 
-def validate_args(args):
+def validate_args(args: argparse.Namespace) -> None:
     if ":/" not in args.iso and not os.path.exists(args.iso):
         print(f"Couldn't read iso file {args.iso}")
         exit(-1)
@@ -114,7 +116,7 @@ def validate_args(args):
     common_bf.find_bf_pci_addresses_or_quit(args.id)
 
 
-def dhcp_config(server_ip, subnet):
+def dhcp_config(server_ip: str, subnet: str) -> str:
     return f"""option space pxelinux;
 option pxelinux.magic code 208 = string;
 option pxelinux.configfile code 209 = text;
@@ -141,7 +143,7 @@ subnet {subnet} netmask 255.255.255.0 {{
 """
 
 
-def grub_config(base_path, ip, is_coreos):
+def grub_config(base_path: str, ip: str, is_coreos: bool) -> str:
     if is_coreos:
         opts = f"coreos.live.rootfs_url=http://{ip}/rootfs.img ignition.firstboot ignition.platform.id=metal"
         ign_opts = f"{base_path}/ignition.img"
@@ -166,17 +168,17 @@ menuentry 'Reboot' --class red --class gnu-linux --class gnu --class os {{
 """
 
 
-def rshim_base(args):
+def rshim_base(args: argparse.Namespace) -> str:
     return f"/dev/rshim{args.id//2}/"
 
 
-def bf_reboot(args):
+def bf_reboot(args: argparse.Namespace) -> None:
     print("Rebooting bf")
     with open(f"{rshim_base(args)}/misc", "w") as f:
         f.write("SW_RESET 1")
 
 
-def get_uefiboot_img(args):
+def get_uefiboot_img(args: argparse.Namespace) -> None:
     print("Ensuring efiboot_img is downloaded or copied to the right place")
     dst = "efiboot.img"
     if args.efiboot_img.startswith("http://"):
@@ -188,11 +190,11 @@ def get_uefiboot_img(args):
         shutil.copy(args.efiboot_img, dst)
 
 
-def os_name(is_coreos):
+def os_name(is_coreos: bool) -> str:
     return "CoreOS" if is_coreos else "RHEL"
 
 
-def prepare_pxe(args):
+def prepare_pxe(args: argparse.Namespace) -> None:
     common_bf.run(f"ip a f {args.port}")
     common_bf.run(f"ip a a {args.ip}/{args.net_prefix} dev {args.port}")
 
@@ -242,11 +244,11 @@ def prepare_pxe(args):
     write_file(fn, dhcp_config(args.ip, args.subnet))
 
 
-def minicom_cmd(args):
+def minicom_cmd(args: argparse.Namespace) -> str:
     return f"minicom --baudrate 115200 --device {rshim_base(args)}/console"
 
 
-def pexpect_child_wait(child, pattern, timeout):
+def pexpect_child_wait(child: pexpect.spawn, pattern: str, timeout: float) -> float:
     print(f"Waiting {timeout} sec for pattern '{pattern}'")
     start_time = time.time()
     found = False
@@ -269,7 +271,7 @@ def pexpect_child_wait(child, pattern, timeout):
     return round(time.time() - start_time, 2)
 
 
-def bf_select_pxe_entry(args):
+def bf_select_pxe_entry(args: argparse.Namespace) -> None:
     print("selecting pxe entry in bf")
     ESC = "\x1b"
     KEY_DOWN = "\x1b[B"
@@ -348,13 +350,13 @@ def bf_select_pxe_entry(args):
     print("Closing minicom")
 
 
-def run(cmd):
+def run(cmd: str) -> Process:
     p = Process(target=common_bf.run, args=(cmd,))
     p.start()
     return p
 
 
-def http_server():
+def http_server() -> None:
     os.chdir("/www")
     server_address = ("", 80)
     handler = http.server.SimpleHTTPRequestHandler
@@ -362,12 +364,12 @@ def http_server():
     httpd.serve_forever()
 
 
-def split_nfs_path(n):
+def split_nfs_path(n: str) -> tuple[str, str]:
     splitted = n.split(":")
     return splitted[0], ":".join(splitted[1:])
 
 
-def mount_nfs_path(arg, mount_path):
+def mount_nfs_path(arg: str, mount_path: str) -> str:
     os.makedirs(mount_path, exist_ok=True)
     ip, path = split_nfs_path(arg)
 
@@ -377,15 +379,14 @@ def mount_nfs_path(arg, mount_path):
     return os.path.join(mount_path, os.path.basename(path))
 
 
-def get_private_key(key: str):
+def get_private_key(key: str) -> Union[paramiko.RSAKey, paramiko.Ed25519Key]:
     try:
-        pkey = paramiko.RSAKey.from_private_key(io.StringIO(key))
+        return paramiko.RSAKey.from_private_key(io.StringIO(key))
     except paramiko.ssh_exception.SSHException:
-        pkey = paramiko.Ed25519Key.from_private_key(io.StringIO(key))
-    return pkey
+        return paramiko.Ed25519Key.from_private_key(io.StringIO(key))
 
 
-def wait_and_login(args, ip):
+def wait_and_login(args: argparse.Namespace, ip: str) -> None:
     with open(args.key, "r") as f:
         key = f.read().strip()
 
@@ -408,7 +409,11 @@ def wait_and_login(args, ip):
     host.exec_command(f"sudo date -s '{local_date}'")
 
 
-def capture_minicom(args, stop_event, output):
+def capture_minicom(
+    args: argparse.Namespace,
+    stop_event: threading.Event,
+    output: list[bytes],
+) -> None:
     child = pexpect.spawn(minicom_cmd(args))
 
     while not stop_event.is_set():
@@ -422,7 +427,7 @@ def capture_minicom(args, stop_event, output):
             break
 
 
-def prepare_kickstart(ip):
+def prepare_kickstart(ip: str) -> None:
     ks = "kickstart.ks"
     dst = os.path.join("/www", ks)
     if os.path.exists(dst):
@@ -441,7 +446,7 @@ def prepare_kickstart(ip):
         file.write(updated_content)
 
 
-def try_pxy_boot():
+def try_pxy_boot() -> str:
     args = read_args()
     validate_args(args)
 
@@ -502,7 +507,7 @@ def try_pxy_boot():
         bf_select_pxe_entry(args)
 
     stop_event = threading.Event()
-    output = []
+    output: list[bytes] = []
     minicom_watch = threading.Thread(
         target=capture_minicom, args=(args, stop_event, output)
     )
@@ -519,8 +524,8 @@ def try_pxy_boot():
         response_ip = ""
     stop_event.set()
     minicom_watch.join()
-    output = b"".join(output)
-    output_str = output.decode("utf-8", errors="replace")
+    output2 = b"".join(output)
+    output_str = output2.decode("utf-8", errors="replace")
     print(output_str)
     if ping_exception is not None:
         raise ping_exception
@@ -532,13 +537,13 @@ def try_pxy_boot():
         time.sleep(1000)
 
     print("Terminating http, ftp, and dhcpd")
-    for e in children:
-        e.terminate()
+    for ch in children:
+        ch.terminate()
     print(response_ip)
     return response_ip
 
 
-def kill_existing():
+def kill_existing() -> None:
     pids = [pid for pid in os.listdir("/proc") if pid.isdigit()]
 
     own_pid = os.getpid()
@@ -555,7 +560,7 @@ def kill_existing():
             pass
 
 
-def main():
+def main() -> None:
     kill_existing()
     for retry in range(6):
         try:

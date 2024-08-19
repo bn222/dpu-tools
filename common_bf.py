@@ -4,6 +4,8 @@ import shlex
 import subprocess
 import sys
 
+from typing import Optional
+
 
 @dataclasses.dataclass(frozen=True)
 class Result:
@@ -27,7 +29,7 @@ def run(cmd: str, env: dict[str, str] = os.environ.copy()) -> Result:
     )
 
 
-def all_interfaces():
+def all_interfaces() -> dict[str, str]:
     out = run("lshw -c network -businfo").out
     ret = {}
     for e in out.split("\n")[2:]:
@@ -41,13 +43,13 @@ def all_interfaces():
     return ret
 
 
-def find_bf_pci_addresses():
+def find_bf_pci_addresses() -> list[str]:
     ai = all_interfaces()
     bfs = [e for e in ai.items() if "BlueField" in e[1]]
     return [k.split("@")[1] for k, v in bfs]
 
 
-def find_bf_pci_addresses_or_quit(bf_id):
+def find_bf_pci_addresses_or_quit(bf_id: int) -> str:
     bf_pci = find_bf_pci_addresses()
     if not bf_pci:
         print("No BF found")
@@ -58,7 +60,7 @@ def find_bf_pci_addresses_or_quit(bf_id):
     return bf_pci[bf_id]
 
 
-def mst_flint(pci):
+def mst_flint(pci: str) -> dict[str, str]:
     out = run(f"mstflint -d {pci} q").out
     ret = {}
     for e in out.split("\n"):
@@ -76,7 +78,7 @@ def mst_flint(pci):
     return ret
 
 
-def bf_version(pci):
+def bf_version(pci: str) -> Optional[int]:
     out = run("lshw -c network -businfo").out
     for e in out.split("\n"):
         if not e.startswith(f"pci@{pci}"):

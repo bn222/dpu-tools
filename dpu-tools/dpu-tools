@@ -32,11 +32,11 @@ def run(cmd: str, env: dict[str, str] = os.environ.copy()) -> Result:
     )
 
 
-def reset(args):
+def reset(args: argparse.Namespace) -> None:
     run("ssh root@100.0.0.100 sudo reboot")
 
 
-def console(args):
+def console(args: argparse.Namespace) -> None:
     if args.target == "imc":
         minicom_cmd = "minicom -b 460800 -D /dev/ttyUSB2"
     else:
@@ -73,7 +73,7 @@ def find_bus_pci_address(address: str) -> str:
         return "Invalid PCI address format"
 
 
-def list_dpus(args):
+def list_dpus(args: argparse.Namespace) -> None:
     del args
     devs = {}
     for e in run("lspci").out.split("\n"):
@@ -90,7 +90,7 @@ def list_dpus(args):
         print(f"{i: 5d}  {k.ljust(8)}  {d.ljust(12)}  {kind}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Tools to interact with an IPU")
     subparsers = parser.add_subparsers(
         title="subcommands", description="Valid subcommands", dest="subcommand"

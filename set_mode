@@ -6,7 +6,7 @@ import os
 import common_bf
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Reads the current mode of the BF-2.")
     parser.add_argument(
         "mode", metavar="mode", type=str, help="which mode to set the BF-2 to."

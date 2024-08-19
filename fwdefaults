@@ -6,7 +6,7 @@ import os
 import common_bf
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Resets the firmware settings on the BF to defaults."
     )
