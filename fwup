@@ -11,14 +11,16 @@ class RemoteAPI:
         self._remote_url = f"https://downloaders.azurewebsites.net/downloaders/bluefield{bf_version}_fw_downloader/helper.php"
 
     def get_latest_version(self):
-        data = {'action': 'get_versions', }
+        data = {
+            "action": "get_versions",
+        }
         response = requests.post(self._remote_url, data=data)
         return response.json()["latest"]
 
     def get_distros(self, v):
         data = {
-          'action': 'get_distros',
-          'version': v,
+            "action": "get_distros",
+            "version": v,
         }
         r = requests.post(self._remote_url, data=data)
 
@@ -26,20 +28,20 @@ class RemoteAPI:
 
     def get_os(self, version, distro):
         data = {
-          'action': 'get_oses',
-          'version': version,
-          'distro': distro,
+            "action": "get_oses",
+            "version": version,
+            "distro": distro,
         }
         r = requests.post(self._remote_url, data=data)
         return r.json()[0]
 
     def get_download_info(self, version, distro, os_param):
         data = {
-          'action': 'get_download_info',
-          'version': version,
-          'distro': distro,
-          'os': os_param,
-          'arch': 'x64'
+            "action": "get_download_info",
+            "version": version,
+            "distro": distro,
+            "os": os_param,
+            "arch": "x64",
         }
         r = requests.post(self._remote_url, data=data)
         return r.json()
@@ -89,9 +91,27 @@ def update_bf_firmware(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Specify the id of the BF. Updates the firmware on the BF to the latest avaible one.')
-    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF.')
-    parser.add_argument('-v','--version', dest='version', default='', action='store', type=str, help='specify a specific firmware version to install (i.e. 24.35.1012)')
+    parser = argparse.ArgumentParser(
+        description="Specify the id of the BF. Updates the firmware on the BF to the latest avaible one."
+    )
+    parser.add_argument(
+        "-i",
+        "--id",
+        dest="id",
+        default=0,
+        action="store",
+        type=int,
+        help="Specify the id of the BF.",
+    )
+    parser.add_argument(
+        "-v",
+        "--version",
+        dest="version",
+        default="",
+        action="store",
+        type=str,
+        help="specify a specific firmware version to install (i.e. 24.35.1012)",
+    )
     args = parser.parse_args()
     r = update_bf_firmware(args)
     sys.exit(r)

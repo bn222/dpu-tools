@@ -42,7 +42,7 @@ def console(args):
         backed_up = False
         temp_file_path = ""
 
-    with open(minirc_path, 'w') as new_file:
+    with open(minirc_path, "w") as new_file:
         new_file.write("pu rtscts           No\n")
     os.system(minicom_cmd)
 
@@ -52,9 +52,9 @@ def console(args):
 
 def find_bus_pci_address(address: str) -> str:
     pattern = r"(\d+):(\d+)\.(\d+)"
-    
+
     match = re.match(pattern, address)
-    
+
     if match:
         bus = match.group(1)
         device = match.group(2)
@@ -81,26 +81,28 @@ def list_dpus(args):
     print("-----  --------  ------------  ------")
     for i, (k, (d, kind)) in enumerate(devs.items()):
         print(f"{i: 5d}  {k.ljust(8)}  {d.ljust(12)}  {kind}")
-            
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Tools to interact with an IPU')
-    subparsers = parser.add_subparsers(title='subcommands', description='Valid subcommands', dest='subcommand')
+    parser = argparse.ArgumentParser(description="Tools to interact with an IPU")
+    subparsers = parser.add_subparsers(
+        title="subcommands", description="Valid subcommands", dest="subcommand"
+    )
 
-    reset_parser = subparsers.add_parser('reset', help='Reset the IPU')
+    reset_parser = subparsers.add_parser("reset", help="Reset the IPU")
     reset_parser.set_defaults(func=reset)
 
-    list_parser = subparsers.add_parser('list', help='list devices')
+    list_parser = subparsers.add_parser("list", help="list devices")
     list_parser.set_defaults(func=list_dpus)
 
-    console_parser = subparsers.add_parser('console', help='Open console for the IPU')
+    console_parser = subparsers.add_parser("console", help="Open console for the IPU")
     console_parser.set_defaults(func=console)
-    console_parser.add_argument('target', choices=['imc', 'acc'], help="Specify imc or acc as the target")
-
+    console_parser.add_argument(
+        "target", choices=["imc", "acc"], help="Specify imc or acc as the target"
+    )
 
     args = parser.parse_args()
-    if hasattr(args, 'func'):
+    if hasattr(args, "func"):
         args.func(args)
     else:
         parser.print_help()
@@ -108,5 +110,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

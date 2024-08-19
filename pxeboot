@@ -55,17 +55,45 @@ def read_file(fn):
 
 def read_args():
     url = "http://download.eng.brq.redhat.com/released/rhel-9/RHEL-9/9.2.0/BaseOS/aarch64/os/images/efiboot.img"
-    parser = argparse.ArgumentParser(description='Set up a PXE server on a specific port.')
-    parser.add_argument('iso', metavar='iso', type=str, help='iso to use for PXE booting')
-    parser.add_argument("-e",  metavar='efiboot_img', dest='efiboot_img', default=url, type=str, help='Specify url to pull efiboot from.')
-    parser.add_argument("-m",  '--wait-minicom', dest='wait_minicom', default=False, action='store_true', help='Instead of running minicom to select pxe entry, just wait indefinitely.')
+    parser = argparse.ArgumentParser(
+        description="Set up a PXE server on a specific port."
+    )
+    parser.add_argument(
+        "iso", metavar="iso", type=str, help="iso to use for PXE booting"
+    )
+    parser.add_argument(
+        "-e",
+        metavar="efiboot_img",
+        dest="efiboot_img",
+        default=url,
+        type=str,
+        help="Specify url to pull efiboot from.",
+    )
+    parser.add_argument(
+        "-m",
+        "--wait-minicom",
+        dest="wait_minicom",
+        default=False,
+        action="store_true",
+        help="Instead of running minicom to select pxe entry, just wait indefinitely.",
+    )
     help = (
         "if key is specified, the script will log in to the BF and"
-        " run \'ip --json a\' before quitting. This also means that the"
+        " run 'ip --json a' before quitting. This also means that the"
         " script will only block when the BF has booted"
     )
-    parser.add_argument("-w",  metavar='key', dest='key', default='', type=str, help=help)
-    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF.')
+    parser.add_argument(
+        "-w", metavar="key", dest="key", default="", type=str, help=help
+    )
+    parser.add_argument(
+        "-i",
+        "--id",
+        dest="id",
+        default=0,
+        action="store",
+        type=int,
+        help="Specify the id of the BF.",
+    )
 
     args = parser.parse_args()
     args.ip = "172.31.100.1"
@@ -173,12 +201,9 @@ def prepare_pxe(args):
     time.sleep(10)
     args.is_coreos = os.path.exists("/var/ftp/mnt/coreos")
 
-    print(f'{os_name(args.is_coreos)} detected')
+    print(f"{os_name(args.is_coreos)} detected")
 
-    rhel_files = [
-        "BOOTAA64.EFI",
-        "grubaa64.efi",
-        "mmaa64.efi"]
+    rhel_files = ["BOOTAA64.EFI", "grubaa64.efi", "mmaa64.efi"]
 
     if not all(map(os.path.exists, rhel_files)):
         if not os.path.exists("efiboot.img"):
@@ -195,9 +220,7 @@ def prepare_pxe(args):
         for file in rhel_files:
             shutil.copy(f"{mount_path}/EFI/BOOT/{file}", "/var/lib/tftpboot/")
 
-    ftp_files = [
-        "images/pxeboot/vmlinuz",
-        "images/pxeboot/initrd.img"]
+    ftp_files = ["images/pxeboot/vmlinuz", "images/pxeboot/initrd.img"]
 
     if args.is_coreos:
         ftp_files.append("images/ignition.img")
@@ -217,7 +240,7 @@ def prepare_pxe(args):
 
 
 def minicom_cmd(args):
-    return f'minicom --baudrate 115200 --device {rshim_base(args)}/console'
+    return f"minicom --baudrate 115200 --device {rshim_base(args)}/console"
 
 
 def pexpect_child_wait(child, pattern, timeout):
@@ -246,8 +269,8 @@ def pexpect_child_wait(child, pattern, timeout):
 def bf_select_pxe_entry(args):
     print("selecting pxe entry in bf")
     ESC = "\x1b"
-    KEY_DOWN = '\x1b[B'
-    KEY_ENTER = '\r\n'
+    KEY_DOWN = "\x1b[B"
+    KEY_ENTER = "\r\n"
 
     common_bf.run("pkill -9 minicom")
     print("spawn minicom")
@@ -256,7 +279,7 @@ def bf_select_pxe_entry(args):
     print("waiting for instructions to enter UEFI Menu to interrupt and go to bios")
     pexpect_child_wait(child, "Press.* enter UEFI Menu.", 120)
     print("found UEFI prompt, sending 'esc'")
-    child.send(ESC*10)
+    child.send(ESC * 10)
     time.sleep(1)
     child.close()
     print("respawning minicom")
@@ -266,7 +289,10 @@ def bf_select_pxe_entry(args):
     child.send(KEY_DOWN)
     time.sleep(1)
     print("waiting on language option")
-    child.expect("This is the option.*one adjusts to change.*the language for the.*current system", timeout=3)
+    child.expect(
+        "This is the option.*one adjusts to change.*the language for the.*current system",
+        timeout=3,
+    )
     print("pressing down again")
     child.send(KEY_DOWN)
     print("waiting for Boot manager entry")
@@ -327,7 +353,7 @@ def run(cmd):
 
 def http_server():
     os.chdir("/www")
-    server_address = ('', 80)
+    server_address = ("", 80)
     handler = http.server.SimpleHTTPRequestHandler
     httpd = http.server.HTTPServer(server_address, handler)
     httpd.serve_forever()
@@ -365,7 +391,7 @@ def wait_and_login(args, ip):
             host = paramiko.SSHClient()
             host.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             pkey = get_private_key(key)
-            host.connect(ip, username='core', pkey=pkey)
+            host.connect(ip, username="core", pkey=pkey)
             break
         except paramiko.ssh_exception.NoValidConnectionsError as e:
             print(f"Unable to establish SSH connection: {e}")
@@ -401,14 +427,14 @@ def prepare_kickstart(ip):
 
     shutil.copy(f"/{ks}", dst)
 
-    with open(dst, 'r') as file:
+    with open(dst, "r") as file:
         file_content = file.read()
 
     find_text = "NETWORK_INSTALL_URL"
     replace_text = f"http://{ip}/mnt"
     updated_content = file_content.replace(find_text, replace_text)
 
-    with open(dst, 'w') as file:
+    with open(dst, "w") as file:
         file.write(updated_content)
 
 
@@ -474,7 +500,9 @@ def try_pxy_boot():
 
     stop_event = threading.Event()
     output = []
-    minicom_watch = threading.Thread(target=capture_minicom, args=(args, stop_event, output))
+    minicom_watch = threading.Thread(
+        target=capture_minicom, args=(args, stop_event, output)
+    )
     minicom_watch.start()
 
     ping_exception = None
@@ -485,11 +513,11 @@ def try_pxy_boot():
     except Exception as e:
         ping_exception = e
         # keep linter happy
-        response_ip = ''
+        response_ip = ""
     stop_event.set()
     minicom_watch.join()
-    output = b''.join(output)
-    output_str = output.decode('utf-8', errors='replace')
+    output = b"".join(output)
+    output_str = output.decode("utf-8", errors="replace")
     print(output_str)
     if ping_exception is not None:
         raise ping_exception
@@ -508,16 +536,16 @@ def try_pxy_boot():
 
 
 def kill_existing():
-    pids = [pid for pid in os.listdir('/proc') if pid.isdigit()]
+    pids = [pid for pid in os.listdir("/proc") if pid.isdigit()]
 
     own_pid = os.getpid()
     for pid in filter(lambda x: int(x) != own_pid, pids):
         try:
-            with open(os.path.join('/proc', pid, 'cmdline'), 'rb') as f:
+            with open(os.path.join("/proc", pid, "cmdline"), "rb") as f:
                 # print(f.read().decode("utf-8"))
-                zb = b'\x00'
+                zb = b"\x00"
                 cmd = [x.decode("utf-8") for x in f.read().strip(zb).split(zb)]
-                if (cmd[0] == 'python3' and os.path.basename(cmd[1]) == 'pxeboot'):
+                if cmd[0] == "python3" and os.path.basename(cmd[1]) == "pxeboot":
                     print(f"Killing pid {pid}")
                     os.kill(int(pid), signal.SIGKILL)
         except Exception:

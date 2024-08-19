@@ -4,12 +4,24 @@ import os, sys
 import common_bf
 import argparse
 
+
 def main():
-    parser = argparse.ArgumentParser(description='Resets the firmware settings on the BF to defaults.')
-    parser.add_argument('-i', '--id', dest='id', default=0, action='store', type=int, help='Specify the id of the BF.')
+    parser = argparse.ArgumentParser(
+        description="Resets the firmware settings on the BF to defaults."
+    )
+    parser.add_argument(
+        "-i",
+        "--id",
+        dest="id",
+        default=0,
+        action="store",
+        type=int,
+        help="Specify the id of the BF.",
+    )
     args = parser.parse_args()
     bf = common_bf.find_bf_pci_addresses_or_quit(args.id)
     os.system(f"mstconfig -y -d {bf} r")
+
 
 if __name__ == "__main__":
     main()
