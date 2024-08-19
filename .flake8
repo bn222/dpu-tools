@@ -1,0 +1,21 @@
+[flake8]
+extend-ignore =
+    E203
+    E501
+    W291
+extend-exclude =
+    *venv*/
+filename =
+    *.py
+    */bfb
+    */console
+    */cx_fwup
+    */dpu-tools/dpu-tools
+    */fwdefaults
+    */fwup
+    */fwversion
+    */get_mode
+    */listbf
+    */pxeboot
+    */reset
+    */set_mode
