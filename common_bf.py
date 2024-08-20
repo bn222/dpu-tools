@@ -6,16 +6,22 @@ import sys
 from collections import namedtuple
 
 
+Result = namedtuple("Result", "out err returncode")
+
+
 def run(cmd: str, env: dict = os.environ.copy()):
-    Result = namedtuple("Result", "out err returncode")
     args = shlex.split(cmd)
-    pipe = subprocess.PIPE
-    with subprocess.Popen(args, stdout=pipe, stderr=pipe, env=env) as proc:
-        out = proc.stdout.read().decode("utf-8")
-        err = proc.stderr.read().decode("utf-8")
-        proc.communicate()
-        ret = proc.returncode
-    return Result(out, err, ret)
+    res = subprocess.run(
+        args,
+        capture_output=True,
+        env=env,
+    )
+
+    return Result(
+        res.stdout.decode("utf-8"),
+        res.stderr.decode("utf-8"),
+        res.returncode,
+    )
 
 
 def all_interfaces():
