@@ -510,7 +510,7 @@ def try_pxy_boot():
 
     ping_exception = None
     try:
-        candidates = list(f"172.31.100.{x}" for x in range(10, 21))
+        candidates = [f"172.31.100.{x}" for x in range(10, 21)]
         response_ip = wait_any_ping(candidates, 180)
         print(f"got response from {response_ip}")
     except Exception as e:

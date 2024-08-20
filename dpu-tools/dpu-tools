@@ -58,9 +58,6 @@ def find_bus_pci_address(address: str) -> str:
 
     if match:
         bus = match.group(1)
-        device = match.group(2)
-        function = match.group(3)
-
         new_address = f"{bus}:00.0"
         return new_address
     else:
