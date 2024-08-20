@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-import sys
-import requests
-import common_bf
 import argparse
+import requests
+import sys
+
+import common_bf
 
 
 class RemoteAPI:

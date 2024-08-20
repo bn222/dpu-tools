@@ -1,8 +1,9 @@
-from collections import namedtuple
-import subprocess
 import os
-import sys
 import shlex
+import subprocess
+import sys
+
+from collections import namedtuple
 
 
 def run(cmd: str, env: dict = os.environ.copy()):

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-import common_bf
 import argparse
+
+import common_bf
 
 
 def main():
