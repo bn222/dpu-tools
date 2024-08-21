@@ -2,6 +2,7 @@
 
 import os, sys
 
+
 def main():
     os.system("chmod +x mlxup")
     r = os.system("/mlxup -y")

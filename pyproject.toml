@@ -1,0 +1,18 @@
+[tool.black]
+include = '''
+    (
+        \.py$
+        | ^/bfb$
+        | ^/console$
+        | ^/cx_fwup$
+        | ^/dpu-tools/dpu-tools$
+        | ^/fwdefaults$
+        | ^/fwup$
+        | ^/fwversion$
+        | ^/get_mode$
+        | ^/listbf$
+        | ^/pxeboot$
+        | ^/reset$
+        | ^/set_mode$
+    )
+    '''

@@ -2,15 +2,33 @@
 import common_bf
 import argparse
 
+
 def main():
-    parser = argparse.ArgumentParser(description='Reads the current mode of the BF.')
-    parser.add_argument('-i', '--id', dest='id', default=0,
-                        action='store', type=int, help='Specify the id of the BF.')
-    parser.add_argument('-v', '--verbose', dest='verbose',
-                        default=False, action='store', type=bool,
-                        help='Enable verbose output. This will show the settings')
-    parser.add_argument('-n', '--next_boot', action='store_true',
-                        help='Get the next_boot mode of the BF')
+    parser = argparse.ArgumentParser(description="Reads the current mode of the BF.")
+    parser.add_argument(
+        "-i",
+        "--id",
+        dest="id",
+        default=0,
+        action="store",
+        type=int,
+        help="Specify the id of the BF.",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        default=False,
+        action="store",
+        type=bool,
+        help="Enable verbose output. This will show the settings",
+    )
+    parser.add_argument(
+        "-n",
+        "--next_boot",
+        action="store_true",
+        help="Get the next_boot mode of the BF",
+    )
     args = parser.parse_args()
 
     bf = common_bf.find_bf_pci_addresses_or_quit(args.id)
@@ -20,7 +38,7 @@ def main():
         "INTERNAL_CPU_PAGE_SUPPLIER",
         "INTERNAL_CPU_ESWITCH_MANAGER",
         "INTERNAL_CPU_IB_VPORT0",
-        "INTERNAL_CPU_OFFLOAD_ENGINE"
+        "INTERNAL_CPU_OFFLOAD_ENGINE",
     ]
     all_cfg = " ".join(cfg)
     ret = common_bf.run(f"mstconfig -e -d {bf} q {all_cfg}").out
@@ -36,23 +54,25 @@ def main():
             if "different from default/current" in e:
                 save_next = False
                 continue
-            k, default, current, next_boot = e.lstrip('*').split()
+            k, default, current, next_boot = e.lstrip("*").split()
             config = next_boot if args.next_boot else current
             settings[k] = config.split("(")[1].split(")")[0]
 
     dpu_mode = {
-        'INTERNAL_CPU_MODEL': '1',
-        'INTERNAL_CPU_PAGE_SUPPLIER': '0',
-        'INTERNAL_CPU_ESWITCH_MANAGER': '0',
-        'INTERNAL_CPU_IB_VPORT0': '0',
-        'INTERNAL_CPU_OFFLOAD_ENGINE': '0'}
+        "INTERNAL_CPU_MODEL": "1",
+        "INTERNAL_CPU_PAGE_SUPPLIER": "0",
+        "INTERNAL_CPU_ESWITCH_MANAGER": "0",
+        "INTERNAL_CPU_IB_VPORT0": "0",
+        "INTERNAL_CPU_OFFLOAD_ENGINE": "0",
+    }
 
     nic_mode = {
-        'INTERNAL_CPU_MODEL': '1',
-        'INTERNAL_CPU_PAGE_SUPPLIER': '1',
-        'INTERNAL_CPU_ESWITCH_MANAGER': '1',
-        'INTERNAL_CPU_IB_VPORT0': '1',
-        'INTERNAL_CPU_OFFLOAD_ENGINE': '1'}
+        "INTERNAL_CPU_MODEL": "1",
+        "INTERNAL_CPU_PAGE_SUPPLIER": "1",
+        "INTERNAL_CPU_ESWITCH_MANAGER": "1",
+        "INTERNAL_CPU_IB_VPORT0": "1",
+        "INTERNAL_CPU_OFFLOAD_ENGINE": "1",
+    }
 
     if dpu_mode == settings:
         print("dpu")
@@ -62,6 +82,7 @@ def main():
         print("unknown")
     if args.verbose:
         print(settings)
+
 
 if __name__ == "__main__":
     main()
