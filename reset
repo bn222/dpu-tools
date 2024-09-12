@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-import common_bf
 import argparse
+
+import common_bf
 
 
 def main():
@@ -16,7 +17,7 @@ def main():
         help="Specify the id of the BF.",
     )
     args = parser.parse_args()
-    bf_pci = common_bf.find_bf_pci_addresses_or_quit(args.id)
+    common_bf.find_bf_pci_addresses_or_quit(args.id)
     with open(f"/dev/rshim{args.id//2}/misc", "w") as f:
         f.write("SW_RESET 1")
 
