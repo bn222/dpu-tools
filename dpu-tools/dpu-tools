@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import dataclasses
 import os
 import re
 import shlex
@@ -8,26 +9,34 @@ import shutil
 import subprocess
 import tempfile
 
-from collections import namedtuple
+
+@dataclasses.dataclass(frozen=True)
+class Result:
+    out: str
+    err: str
+    returncode: int
 
 
-def run(cmd: str, env: dict = os.environ.copy()):
-    Result = namedtuple("Result", "out err returncode")
+def run(cmd: str, env: dict[str, str] = os.environ.copy()) -> Result:
     args = shlex.split(cmd)
-    pipe = subprocess.PIPE
-    with subprocess.Popen(args, stdout=pipe, stderr=pipe, env=env) as proc:
-        out = proc.stdout.read().decode("utf-8")
-        err = proc.stderr.read().decode("utf-8")
-        proc.communicate()
-        ret = proc.returncode
-    return Result(out, err, ret)
+    res = subprocess.run(
+        args,
+        capture_output=True,
+        env=env,
+    )
+
+    return Result(
+        out=res.stdout.decode("utf-8"),
+        err=res.stderr.decode("utf-8"),
+        returncode=res.returncode,
+    )
 
 
-def reset(args):
+def reset(args: argparse.Namespace) -> None:
     run("ssh root@100.0.0.100 sudo reboot")
 
 
-def console(args):
+def console(args: argparse.Namespace) -> None:
     if args.target == "imc":
         minicom_cmd = "minicom -b 460800 -D /dev/ttyUSB2"
     else:
@@ -64,7 +73,7 @@ def find_bus_pci_address(address: str) -> str:
         return "Invalid PCI address format"
 
 
-def list_dpus(args):
+def list_dpus(args: argparse.Namespace) -> None:
     del args
     devs = {}
     for e in run("lspci").out.split("\n"):
@@ -81,7 +90,7 @@ def list_dpus(args):
         print(f"{i: 5d}  {k.ljust(8)}  {d.ljust(12)}  {kind}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Tools to interact with an IPU")
     subparsers = parser.add_subparsers(
         title="subcommands", description="Valid subcommands", dest="subcommand"

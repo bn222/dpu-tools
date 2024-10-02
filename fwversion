@@ -5,7 +5,7 @@ import argparse
 import common_bf
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Shows firmware version.")
     parser.add_argument(
         "-i",

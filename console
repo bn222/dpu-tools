@@ -6,7 +6,7 @@ import os
 import common_bf
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Select BF to connect to with a console."
     )

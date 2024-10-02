@@ -4,30 +4,33 @@ import argparse
 import requests
 import sys
 
+from typing import Any
+
 import common_bf
 
 
 class RemoteAPI:
-    def __init__(self, bf_version):
+    def __init__(self, bf_version: int):
         self._remote_url = f"https://downloaders.azurewebsites.net/downloaders/bluefield{bf_version}_fw_downloader/helper.php"
 
-    def get_latest_version(self):
+    def get_latest_version(self) -> str:
         data = {
             "action": "get_versions",
         }
         response = requests.post(self._remote_url, data=data)
-        return response.json()["latest"]
+        s = response.json()["latest"]
+        assert isinstance(s, str)
+        return s
 
-    def get_distros(self, v):
+    def get_distros(self, v: str) -> Any:
         data = {
             "action": "get_distros",
             "version": v,
         }
         r = requests.post(self._remote_url, data=data)
-
         return r.json()
 
-    def get_os(self, version, distro):
+    def get_os(self, version: str, distro: str) -> Any:
         data = {
             "action": "get_oses",
             "version": version,
@@ -36,7 +39,7 @@ class RemoteAPI:
         r = requests.post(self._remote_url, data=data)
         return r.json()[0]
 
-    def get_download_info(self, version, distro, os_param):
+    def get_download_info(self, version: str, distro: str, os_param: str) -> Any:
         data = {
             "action": "get_download_info",
             "version": version,
@@ -48,7 +51,7 @@ class RemoteAPI:
         return r.json()
 
 
-def update_bf_firmware(args):
+def update_bf_firmware(args: argparse.Namespace) -> int:
     bf = common_bf.find_bf_pci_addresses_or_quit(args.id)
     target_psid = common_bf.mst_flint(bf)["PSID"]
     bf_version = common_bf.bf_version(bf)
@@ -91,7 +94,7 @@ def update_bf_firmware(args):
     return 0
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Specify the id of the BF. Updates the firmware on the BF to the latest avaible one."
     )

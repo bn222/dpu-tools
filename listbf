@@ -3,7 +3,7 @@
 import common_bf
 
 
-def main():
+def main() -> None:
     bf2s = common_bf.find_bf_pci_addresses()
     print("ID     PCI-Address")
     print("-----  ------------")

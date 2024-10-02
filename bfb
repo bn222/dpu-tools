@@ -7,7 +7,7 @@ import time
 import common_bf
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Downloads BFB images and sends it to the BF."
     )
