@@ -56,6 +56,20 @@ def firmware_reset(args: argparse.Namespace) -> None:
     fw.reflash_ipu()
 
 
+def firmware_version(args: argparse.Namespace) -> None:
+    result = get_current_version(args.imc_address, logger=logger)
+    if result.returncode:
+        logger.debug("Failed with ssh, trying minicom!")
+        try:
+            minicom_get_version(logger=logger)
+        except Exception as e:
+            logger.error(f"Error ssh try: {result.err}")
+            logger.error(f"Exception with minicom: {e}")
+            logger.error("Exiting...")
+            sys.exit(result.returncode)
+    print(result.out)
+
+
 def console(args: argparse.Namespace) -> None:
     if args.target == "imc":
         minicom_cmd = "minicom -b 460800 -D /dev/ttyUSB2"
@@ -161,6 +175,13 @@ def main() -> None:
         help="Version for the firmware Up",
     )
 
+    # firmware version subcommand
+    firmware_version_parser = firmware_subparsers.add_parser(
+        "version", help="Retrieve firmware version"
+    )
+    firmware_version_parser.set_defaults(func=firmware_version)
+
+    # List commands
     list_parser = subparsers.add_parser("list", help="list devices")
     list_parser.set_defaults(func=list_dpus)
 
