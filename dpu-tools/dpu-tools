@@ -24,8 +24,15 @@ def reset(args: argparse.Namespace) -> None:
     run("ssh root@100.0.0.100 sudo reboot")
 
 
-
-
+def firmware_up(args: argparse.Namespace) -> None:
+    fw = IPUFirmware(
+        args.imc_address,
+        args.version,
+        repo_url=args.repo_url,
+        dry_run=args.dry_run,
+        verbose=args.verbose,
+    )
+    fw.reflash_ipu()
 
 
 def firmware_reset(args: argparse.Namespace) -> None:
@@ -142,6 +149,17 @@ def main() -> None:
         "reset", help="Reset the firmware"
     )
     firmware_reset_parser.set_defaults(func=firmware_reset)
+
+    # Firmware up subcommand
+    firmware_up_parser = firmware_subparsers.add_parser(
+        "up", help="Update the firmware"
+    )
+    firmware_up_parser.set_defaults(func=firmware_up)
+    firmware_up_parser.add_argument(
+        "--version",
+        choices=VERSIONS,
+        help="Version for the firmware Up",
+    )
 
     list_parser = subparsers.add_parser("list", help="list devices")
     list_parser.set_defaults(func=list_dpus)
