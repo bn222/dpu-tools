@@ -7,8 +7,8 @@ import shutil
 import tempfile
 import sys
 import logging
-from fwutils import IPUFirmware
-from common_ipu import (
+from ipu.fwutils import IPUFirmware
+from common.common_ipu import (
     VERSIONS,
     get_current_version,
     setup_logging,
