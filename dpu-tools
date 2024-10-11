@@ -11,11 +11,9 @@ from ipu.fwutils import IPUFirmware
 from common.common_ipu import (
     VERSIONS,
     get_current_version,
-    setup_logging,
-    run,
     minicom_get_version,
 )
-
+from common.common import setup_logging, run
 
 logger = logging.getLogger(__name__)
 
