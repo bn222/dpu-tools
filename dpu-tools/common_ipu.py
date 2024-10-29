@@ -179,7 +179,7 @@ def minicom_get_version(logger: logging.Logger) -> str:
     # Wait for the expected response (adjust the timeout as needed)
 
     try:
-        pexpect_child_wait(child, ".*IPU IMC MEV-HW-B1-ci-ts.release.*", 120)
+        pexpect_child_wait(child, ".*IPU IMC.*", 120)
     except Exception as e:
         raise e
 
