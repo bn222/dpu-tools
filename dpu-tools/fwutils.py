@@ -4,6 +4,7 @@ import sys
 import pexpect
 from minicom import minicom_cmd, pexpect_child_wait, configure_minicom
 from common_ipu import (
+    check_connectivity,
     extract_tar_gz,
     run,
     download_file,
@@ -143,29 +144,37 @@ class IPUFirmware:
             self.logger.debug("[DRY RUN] Send Ctrl-A and 'x' to exit minicom")
             self.logger.debug("[DRY RUN] Expect EOF")
         else:
-            run("pkill -9 minicom")
-            self.logger.debug("Configuring minicom")
-            configure_minicom()
-            self.logger.debug("spawn minicom")
-            child = pexpect.spawn(minicom_cmd("imc"))
-            child.maxread = 10000
-            pexpect_child_wait(
-                child, ".*Press CTRL-A Z for help on special keys.*", 120
+            self.logger.debug(
+                f"Checking that ipu runtime access is up by sshing into {self.imc_address}"
             )
-            self.logger.debug("Ready to enter command")
-            child.sendline("/etc/ipu/ipu_runtime_access")
-            # Wait for the expected response (adjust the timeout as needed)
-            pexpect_child_wait(child, ".*Enabling network and sshd.*", 120)
+            connected = check_connectivity(self.imc_address)
+            if not connected:
+                self.logger.debug(
+                    f"Couldn't ssh into {self.imc_address}, enabling runtime access through minicom"
+                )
+                run("pkill -9 minicom")
+                self.logger.debug("Configuring minicom")
+                with configure_minicom():
+                    self.logger.debug("spawn minicom")
+                    child = pexpect.spawn(minicom_cmd("imc"))
+                    child.maxread = 10000
+                    pexpect_child_wait(
+                        child, ".*Press CTRL-A Z for help on special keys.*", 120
+                    )
+                    self.logger.debug("Ready to enter command")
+                    child.sendline("/etc/ipu/ipu_runtime_access")
+                    # Wait for the expected response (adjust the timeout as needed)
+                    pexpect_child_wait(child, ".*Enabling network and sshd.*", 120)
 
-            # Capture and self.logger.debug the output
-            assert child.before is not None
-            self.logger.debug(child.before.decode("utf-8"))
-            self.logger.debug(child.after.decode("utf-8"))
-            # Gracefully close Picocom (equivalent to pressing Ctrl-A and Ctrl-X)
-            child.sendcontrol("a")
-            child.sendline("x")
-            # Ensure Picocom closes properly
-            child.expect(pexpect.EOF)
+                    # Capture and self.logger.debug the output
+                    assert child.before is not None
+                    self.logger.debug(child.before.decode("utf-8"))
+                    self.logger.debug(child.after.decode("utf-8"))
+                    # Gracefully close Picocom (equivalent to pressing Ctrl-A and Ctrl-X)
+                    child.sendcontrol("a")
+                    child.sendline("x")
+                    # Ensure Picocom closes properly
+                    child.expect(pexpect.EOF)
 
     def clean_up_imc(self) -> None:
         self.logger.info("Cleaning up IMC via SSH")

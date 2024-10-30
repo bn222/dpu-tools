@@ -4,7 +4,8 @@ import os
 import shutil
 import tempfile
 import logging
-
+from contextlib import contextmanager
+from typing import Generator
 
 logger = logging.getLogger(__name__)
 
@@ -40,18 +41,31 @@ def pexpect_child_wait(child: pexpect.spawn, pattern: str, timeout: float) -> fl
     return round(time.time() - start_time, 2)
 
 
-def configure_minicom() -> None:
+@contextmanager
+def configure_minicom() -> Generator[None, None, None]:
     minirc_path = "/root/.minirc.dfl"
+
+    # Check if minirc_path exists and create a temporary backup if it does
     if os.path.exists(minirc_path):
         backed_up = True
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            temp_file_path = temp_file.name
-        shutil.move(minirc_path, temp_file_path)
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        temp_file_path = temp_file.name
+        temp_file.close()
+        shutil.move(minirc_path, temp_file_path)  # Backup existing file
     else:
         backed_up = False
         temp_file_path = ""
 
+    # Write new configuration
     with open(minirc_path, "w") as new_file:
-        new_file.write("pu rtscts           No\n")
-    if backed_up:
-        shutil.move(temp_file_path, minirc_path)
+        new_file.write("pu rtscts        No\n")
+
+    try:
+        # Yield control back to the context block
+        yield
+    finally:
+        # Clean up by restoring the backup if it exists
+        if backed_up:
+            shutil.move(temp_file_path, minirc_path)
+        elif temp_file_path:
+            os.remove(temp_file_path)

@@ -9,6 +9,7 @@ import dataclasses
 import threading
 import re
 import pexpect
+import time
 from minicom import configure_minicom, pexpect_child_wait, minicom_cmd
 
 
@@ -178,7 +179,7 @@ def minicom_get_version(logger: logging.Logger) -> str:
     # Wait for the expected response (adjust the timeout as needed)
 
     try:
-        pexpect_child_wait(child, ".*IPU IMC MEV-HW-B1-ci-ts.release.*", 120)
+        pexpect_child_wait(child, ".*IPU IMC.*", 120)
     except Exception as e:
         raise e
 
@@ -203,3 +204,38 @@ def minicom_get_version(logger: logging.Logger) -> str:
     # Ensure Picocom closes properly
     child.expect(pexpect.EOF)
     return version
+
+
+def check_connectivity(
+    address: str,
+    capture_output: bool = False,
+    dry_run: bool = False,
+    retries: int = 3,
+    delay: int = 2,
+) -> bool:
+    """
+    Checks connectivity to the specified address by performing a ping, with retry capability.
+    """
+    # Extract hostname if address is in the form user@hostname
+    if "@" in address:
+        host = address.split("@")[-1]
+    else:
+        host = address
+
+    # Attempt to ping with retry logic
+    for attempt in range(1, retries + 1):
+        result = run(
+            f"ping -c 1 -W 1 {host}", capture_output=capture_output, dry_run=dry_run
+        )
+
+        if result.returncode == 0:
+            logger.debug(f"{host} is reachable.")
+            return True
+        else:
+            logger.debug(f"Attempt {attempt} to reach {host} failed.")
+            if attempt < retries:
+                logger.debug(f"Retrying in {delay} seconds...")
+                time.sleep(delay)
+
+    logger.debug(f"Failed to reach {host} after {retries} attempts.")
+    return False
