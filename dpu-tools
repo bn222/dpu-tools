@@ -2,7 +2,6 @@
 
 import argparse
 import os
-import re
 import shutil
 import tempfile
 import sys
@@ -13,7 +12,7 @@ from common.common_ipu import (
     get_current_version,
     minicom_get_version,
 )
-from common.common import setup_logging, run
+from common.common import setup_logging, run, list_dpus
 
 logger = logging.getLogger(__name__)
 
@@ -90,36 +89,6 @@ def console(args: argparse.Namespace) -> None:
 
     if backed_up:
         shutil.move(temp_file_path, minirc_path)
-
-
-def find_bus_pci_address(address: str) -> str:
-    pattern = r"(\d+):(\d+)\.(\d+)"
-
-    match = re.match(pattern, address)
-
-    if match:
-        bus = match.group(1)
-        new_address = f"{bus}:00.0"
-        return new_address
-    else:
-        return "Invalid PCI address format"
-
-
-def list_dpus(args: argparse.Namespace) -> None:
-    del args
-    devs = {}
-    for e in run("lspci").out.split("\n"):
-        if "Intel Corporation Device 1453" in e:
-            addr = find_bus_pci_address(e.split()[0])
-            for line in run("lshw -c network -businfo").out.split("\n"):
-                if addr in line:
-                    dev = line.split()[1]
-                    devs[dev] = (addr, "IPU")
-
-    print("ID     netdev    PCI-Address   Kind")
-    print("-----  --------  ------------  ------")
-    for i, (k, (d, kind)) in enumerate(devs.items()):
-        print(f"{i: 5d}  {k.ljust(8)}  {d.ljust(12)}  {kind}")
 
 
 def main() -> None:
