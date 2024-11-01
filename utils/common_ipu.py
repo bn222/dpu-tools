@@ -3,6 +3,7 @@ import os
 import re
 import pexpect
 import time
+import shutil
 from common.minicom import configure_minicom, pexpect_child_wait, minicom_cmd
 from common.common import Result, run
 
@@ -123,3 +124,27 @@ def check_connectivity(
 
     logger.debug(f"Failed to reach {host} after {retries} attempts.")
     return False
+
+
+def console(args: argparse.Namespace) -> None:
+    if args.target == "imc":
+        minicom_cmd = "minicom -b 460800 -D /dev/ttyUSB2"
+    else:
+        minicom_cmd = "minicom -b 115200 -D /dev/ttyUSB0"
+
+    minirc_path = "/root/.minirc.dfl"
+    if os.path.exists(minirc_path):
+        backed_up = True
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file_path = temp_file.name
+        shutil.move(minirc_path, temp_file_path)
+    else:
+        backed_up = False
+        temp_file_path = ""
+
+    with open(minirc_path, "w") as new_file:
+        new_file.write("pu rtscts           No\n")
+    os.system(minicom_cmd)
+
+    if backed_up:
+        shutil.move(temp_file_path, minirc_path)
