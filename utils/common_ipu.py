@@ -3,11 +3,12 @@ import os
 import re
 import pexpect
 import time
-from minicom import configure_minicom, pexpect_child_wait, minicom_cmd
+from common.minicom import configure_minicom, pexpect_child_wait, minicom_cmd
 from common.common import Result, run
 
-
 VERSIONS = ["1.2.0.7550", "1.6.2.9418", "1.8.0.10052"]
+
+logger = logging.getLogger(__name__)
 
 
 def find_image(
