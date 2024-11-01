@@ -3,7 +3,7 @@ import os
 import shlex
 import subprocess
 import sys
-
+import argparse
 from typing import Optional
 
 
@@ -85,3 +85,10 @@ def bf_version(pci: str) -> Optional[int]:
             continue
         return int(e.split("BlueField-")[1].split()[0])
     return None
+
+
+def console_bf(args: argparse.Namespace) -> None:
+    _ = find_bf_pci_addresses_or_quit(args.bf_id)
+    os.system(
+        f"minicom --color on --baudrate 115200 --device /dev/rshim{args.bf_id//2}/console"
+    )
