@@ -10,6 +10,14 @@ import dataclasses
 import threading
 import argparse
 
+from enum import Enum
+
+
+class DPUType(Enum):
+    IPU = "Intel IPU"
+    BF = "NVIDIA BlueField"
+    OCTEON = "Marvell OCTEON"
+
 
 @dataclasses.dataclass(frozen=True)
 class Result:
