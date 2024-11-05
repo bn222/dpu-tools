@@ -144,6 +144,9 @@ def find_bus_pci_address(address: str) -> str:
 
 
 def list_dpus(args: argparse.Namespace) -> None:
+
+
+def scan_for_dpus() -> dict[str, tuple[str, str]]:
     devs = {}
     for e in run("lspci", capture_output=True).out.split("\n"):
         if "Intel Corporation Device 145" in e:
@@ -162,8 +165,5 @@ def list_dpus(args: argparse.Namespace) -> None:
                 if addr in line:
                     dev = line.split()[1]
                     devs[dev] = (addr, "BF")
+    return devs
 
-    print("ID     netdev    PCI-Address   Kind")
-    print("-----  --------  ------------  ------")
-    for i, (k, (d, kind)) in enumerate(devs.items()):
-        print(f"{i: 5d}  {k.ljust(8)}  {d.ljust(12)}  {kind}")
