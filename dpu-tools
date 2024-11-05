@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
-import shutil
-import tempfile
 import sys
 import logging
-from ipu.fwutils import IPUFirmware
-from common.common_ipu import (
+from utils.fwutils import IPUFirmware
+from utils.common_ipu import (
     VERSIONS,
     get_current_version,
     minicom_get_version,
 )
-from common.common import setup_logging, run, list_dpus
+from utils.common_ipu import console_ipu
+from utils.common_bf import console_bf
+from utils.common import (
+    DPUType,
+    detect_dpu_type,
+    scan_for_dpus,
+    setup_logging,
+    run,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +70,20 @@ def firmware_version(args: argparse.Namespace) -> None:
             logger.error("Exiting...")
             sys.exit(result.returncode)
     print(result.out)
+    def console(self) -> None:
+        result = detect_dpu_type(scan_for_dpus())
+        if result.returncode:
+            logger.error(f"Failed to detect dpu type: {result.err}")
+        dpu_type = result.out
+        logger.debug(f"Detected dpu_type: {dpu_type}")
+        if dpu_type == DPUType.IPU.name:
+            console_ipu(self.args)
+        elif dpu_type == DPUType.BF.name:
+            console_bf(self.args)
+        elif dpu_type == DPUType.Octeon.name:
+            logger.error("Marvel Octeon console support has not yet been implemented!")
+        else:
+            logger.error("UNKNOWN Type")
 
 
 def main() -> None:
