@@ -24,8 +24,10 @@ RUN wget https://www.mellanox.com/downloads/firmware/mlxup/4.26.0/SFX/linux_x64/
 
 COPY . .
 
-RUN echo "echo 'running rshim'; rshim; sleep infinity" > rshim.sh && chmod +x rshim.sh
-ENTRYPOINT /rshim.sh
+COPY entry.sh /entry.sh
 
-ENTRYPOINT ["python3", "/dpu-tools"]
+# Ensure the script is executable
+RUN chmod +x /entry.sh
+
+ENTRYPOINT ["/entry.sh"]
 # sudo podman run --pid host --network host --user 0 --name bf -dit --privileged -v /dev:/dev quay.io/bnemeth/bf
