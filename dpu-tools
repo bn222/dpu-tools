@@ -93,6 +93,7 @@ class DPUTools:
 
     def console(self) -> None:
         logger.debug(f"Current DPU Type: {self.dpu_type}")
+        # TODO Since we can only console into the ipu through the provisioner, the dpu type should be given as an argument
         if self.dpu_type == DPUType.IPU.name:
             console_ipu(self.args)
         elif self.dpu_type == DPUType.BF.name:
@@ -101,6 +102,16 @@ class DPUTools:
             logger.error("Marvel Octeon console support has not yet been implemented!")
         else:
             logger.error("UNKNOWN Type")
+
+    def list_dpus(self) -> None:
+        """
+        This function
+        """
+        devs = scan_for_dpus()
+        print("ID     netdev    PCI-Address   Kind")
+        print("-----  --------  ------------  ------")
+        for i, (k, (d, kind)) in enumerate(devs.items()):
+            print(f"{i: 5d}  {k.ljust(8)}  {d.ljust(12)}  {kind}")
 
 
 def main():

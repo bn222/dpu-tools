@@ -8,7 +8,6 @@ import os
 import re
 import dataclasses
 import threading
-import argparse
 
 from enum import Enum
 
@@ -141,9 +140,6 @@ def find_bus_pci_address(address: str) -> str:
         return new_address
     else:
         return "Invalid PCI address format"
-
-
-def list_dpus(args: argparse.Namespace) -> None:
 
 
 def scan_for_dpus() -> dict[str, tuple[str, str]]:
