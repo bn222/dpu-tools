@@ -4,6 +4,7 @@ import re
 import pexpect
 import time
 import shutil
+import argparse
 from common.minicom import configure_minicom, pexpect_child_wait, minicom_cmd
 from common.common import Result, run
 
@@ -126,7 +127,7 @@ def check_connectivity(
     return False
 
 
-def console(args: argparse.Namespace) -> None:
+def console_ipu(args: argparse.Namespace) -> None:
     if args.target == "imc":
         minicom_cmd = "minicom -b 460800 -D /dev/ttyUSB2"
     else:
