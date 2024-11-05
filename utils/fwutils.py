@@ -2,16 +2,18 @@
 import logging
 import sys
 import pexpect
-from minicom import minicom_cmd, pexpect_child_wait, configure_minicom
-from common_ipu import (
+from utils.minicom import minicom_cmd, pexpect_child_wait, configure_minicom
+from utils.common_ipu import (
     check_connectivity,
-    extract_tar_gz,
-    run,
-    download_file,
     find_image,
     get_current_version,
     VERSIONS,
     minicom_get_version,
+)
+from utils.common import (
+    extract_tar_gz,
+    download_file,
+    run,
 )
 
 
