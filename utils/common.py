@@ -167,3 +167,21 @@ def scan_for_dpus() -> dict[str, tuple[str, str]]:
                     devs[dev] = (addr, "BF")
     return devs
 
+
+def detect_dpu_type() -> Result:
+    devs = scan_for_dpus()
+    kinds = {kind for (_, (_, kind)) in devs.items()}
+    if len(kinds) > 1:
+        return Result(
+            "",
+            "Multiple DPU types detected on this machine. Automatic detection is not possible. Please specify the platform manually.",
+            returncode=1,
+        )
+
+    if len(kinds) < 1:
+        return Result(
+            "",
+            "No DPU devices found.",
+            returncode=-1,
+        )
+    return Result(next(iter(kinds)), "", 0)
