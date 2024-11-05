@@ -22,143 +22,143 @@ from utils.common import (
 logger = logging.getLogger(__name__)
 
 
-def reset(args: argparse.Namespace) -> None:
-    run("ssh root@100.0.0.100 sudo reboot")
+class DPUTools:
+    def __init__(self, args: argparse.Namespace):
+        # Initialize shared attributes
+        self.args = args
+        self.dpu_type = args.dpu_type.upper()
 
+    def dispatch(self) -> None:
+        """Map subcommands to methods and execute the chosen command."""
+        command_map = {
+            "reset": self.reset,
+            "firmware_reset": self.firmware_reset,
+            "firmware_up": self.firmware_up,
+            "firmware_version": self.firmware_version,
+            "list_dpus": self.list_dpus,
+            "console": self.console,
+        }
+        # Execute the selected command
+        if self.args.subcommand in command_map:
+            command_map[self.args.subcommand]()
+        else:
+            print("Invalid command. Use --help for a list of available commands.")
+            sys.exit(1)
 
-def firmware_up(args: argparse.Namespace) -> None:
-    fw = IPUFirmware(
-        args.imc_address,
-        args.version,
-        repo_url=args.repo_url,
-        dry_run=args.dry_run,
-        verbose=args.verbose,
-    )
-    fw.reflash_ipu()
+    def reset(self) -> None:
+        run("ssh root@100.0.0.100 sudo reboot")
 
+    def firmware_up(self) -> None:
+        fw = IPUFirmware(
+            self.args.imc_address,
+            self.args.version,
+            repo_url=self.args.repo_url,
+            dry_run=self.args.dry_run,
+            verbose=self.args.verbose,
+        )
+        fw.reflash_ipu()
 
-def firmware_reset(args: argparse.Namespace) -> None:
-    result = get_current_version(args.imc_address, logger=logger)
-    if result.returncode:
-        logger.debug("Failed with ssh, trying minicom!")
-        try:
-            minicom_get_version(logger=logger)
-        except Exception as e:
-            logger.error(f"Error ssh try: {result.err}")
-            logger.error(f"Exception with minicom: {e}")
-            logger.error("Exiting...")
-            sys.exit(result.returncode)
-    fw = IPUFirmware(
-        args.imc_address,
-        version=result.out,
-        repo_url=args.repo_url,
-        dry_run=args.dry_run,
-        verbose=args.verbose,
-    )
-    fw.reflash_ipu()
-
-
-def firmware_version(args: argparse.Namespace) -> None:
-    result = get_current_version(args.imc_address, logger=logger)
-    if result.returncode:
-        logger.debug("Failed with ssh, trying minicom!")
-        try:
-            minicom_get_version(logger=logger)
-        except Exception as e:
-            logger.error(f"Error ssh try: {result.err}")
-            logger.error(f"Exception with minicom: {e}")
-            logger.error("Exiting...")
-            sys.exit(result.returncode)
-    print(result.out)
-    def console(self) -> None:
-        result = detect_dpu_type(scan_for_dpus())
+    def firmware_reset(self) -> None:
+        result = get_current_version(self.args.imc_address, logger=logger)
         if result.returncode:
-            logger.error(f"Failed to detect dpu type: {result.err}")
-        dpu_type = result.out
-        logger.debug(f"Detected dpu_type: {dpu_type}")
-        if dpu_type == DPUType.IPU.name:
+            logger.debug("Failed with ssh, trying minicom!")
+            try:
+                minicom_get_version(logger=logger)
+            except Exception as e:
+                logger.error(f"Error ssh try: {result.err}")
+                logger.error(f"Exception with minicom: {e}")
+                logger.error("Exiting...")
+                sys.exit(result.returncode)
+        fw = IPUFirmware(
+            self.args.imc_address,
+            version=result.out,
+            repo_url=self.args.repo_url,
+            dry_run=self.args.dry_run,
+            verbose=self.args.verbose,
+        )
+        fw.reflash_ipu()
+
+    def firmware_version(self) -> None:
+        result = get_current_version(self.args.imc_address, logger=logger)
+        if result.returncode:
+            logger.debug("Failed with ssh, trying minicom!")
+            try:
+                minicom_get_version(logger=logger)
+            except Exception as e:
+                logger.error(f"Error ssh try: {result.err}")
+                logger.error(f"Exception with minicom: {e}")
+                logger.error("Exiting...")
+                sys.exit(result.returncode)
+        print(result.out)
+
+    def console(self) -> None:
+        logger.debug(f"Current DPU Type: {self.dpu_type}")
+        if self.dpu_type == DPUType.IPU.name:
             console_ipu(self.args)
-        elif dpu_type == DPUType.BF.name:
+        elif self.dpu_type == DPUType.BF.name:
             console_bf(self.args)
-        elif dpu_type == DPUType.Octeon.name:
+        elif self.dpu_type == DPUType.OCTEON.name:
             logger.error("Marvel Octeon console support has not yet been implemented!")
         else:
             logger.error("UNKNOWN Type")
 
 
-def main() -> None:
+def main():
+    detected = detect_dpu_type()
+    if detected.returncode:
+        logger.error(f"Couldn't detect dpu_type: {detected.err}")
+        sys.exit(detected.returncode)
     parser = argparse.ArgumentParser(description="Tools to interact with an IPU")
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Increse Output",
+        help="Increase output verbosity",
     )
-    subparsers = parser.add_subparsers(
-        title="subcommands", description="Valid subcommands", dest="subcommand"
+    parser.add_argument(
+        "--dpu-type",
+        choices=["bf", "ipu"],
+        default=detected.out,
     )
+    subparsers = parser.add_subparsers(title="subcommands", dest="subcommand")
 
     reset_parser = subparsers.add_parser("reset", help="Reset the IPU")
-    reset_parser.set_defaults(func=reset)
 
-    # Firmware command with its own subcommands (reset/up)
     firmware_parser = subparsers.add_parser("firmware", help="Control the IPU firmware")
-    firmware_subparsers = firmware_parser.add_subparsers(
-        title="firmware commands",
-        description="Valid firmware subcommands",
-        dest="firmware_command",
-    )
-
+    firmware_parser.add_argument("--imc-address", required=True, help="IMC address")
+    firmware_parser.add_argument("--repo-url", help="Firmware repo URL")
     firmware_parser.add_argument(
-        "--imc-address", required=True, help="IMC address for the firmware"
+        "--dry-run", action="store_true", help="Simulate changes"
     )
-    firmware_parser.add_argument(
-        "--repo-url", help="Repo address for the firmware images"
+    firmware_subparsers = firmware_parser.add_subparsers(dest="firmware_command")
+
+    firmware_subparsers.add_parser("reset", help="Reset firmware").set_defaults(
+        subcommand="firmware_reset"
+    )
+    firmware_up_parser = firmware_subparsers.add_parser("up", help="Update firmware")
+    firmware_up_parser.add_argument("--version", choices=VERSIONS)
+    firmware_up_parser.set_defaults(subcommand="firmware_up")
+
+    firmware_subparsers.add_parser("version", help="Get firmware version").set_defaults(
+        subcommand="firmware_version"
     )
 
-    firmware_parser.add_argument(
-        "--dry-run",
-        action="store_true",  # This makes it a flag (boolean)
-        help="Simulate the firmware changes without making actual changes",
-    )
-    # Firmware reset subcommand
-    firmware_reset_parser = firmware_subparsers.add_parser(
-        "reset", help="Reset the firmware"
-    )
-    firmware_reset_parser.set_defaults(func=firmware_reset)
-
-    # Firmware up subcommand
-    firmware_up_parser = firmware_subparsers.add_parser(
-        "up", help="Update the firmware"
-    )
-    firmware_up_parser.set_defaults(func=firmware_up)
-    firmware_up_parser.add_argument(
-        "--version",
-        choices=VERSIONS,
-        help="Version for the firmware Up",
+    subparsers.add_parser("list", help="List devices").set_defaults(
+        subcommand="list_dpus"
     )
 
-    # firmware version subcommand
-    firmware_version_parser = firmware_subparsers.add_parser(
-        "version", help="Retrieve firmware version"
-    )
-    firmware_version_parser.set_defaults(func=firmware_version)
+    console_parser = subparsers.add_parser("console", help="Open IPU console")
+    console_parser.add_argument("--target", choices=["imc", "acc"], default="imc")
 
-    # List commands
-    list_parser = subparsers.add_parser("list", help="list devices")
-    list_parser.set_defaults(func=list_dpus)
-
-    console_parser = subparsers.add_parser("console", help="Open console for the IPU")
-    console_parser.set_defaults(func=console)
     console_parser.add_argument(
-        "target", choices=["imc", "acc"], help="Specify imc or acc as the target"
+        "-i", "--bf-id", type=int, default=0, help="Specify BF ID"
     )
+    console_parser.set_defaults(subcommand="console")
 
+    # Parse arguments and initialize DPUTools
     args = parser.parse_args()
     setup_logging(args.verbose)
-    if hasattr(args, "func"):
-        args.func(args)
-    else:
-        parser.print_help()
+    dpu_tools = DPUTools(args)
+    dpu_tools.dispatch()
 
 
 if __name__ == "__main__":
