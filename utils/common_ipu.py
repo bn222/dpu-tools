@@ -5,8 +5,8 @@ import pexpect
 import time
 import shutil
 import argparse
-from common.minicom import configure_minicom, pexpect_child_wait, minicom_cmd
-from common.common import Result, run
+from utils.minicom import configure_minicom, pexpect_child_wait, minicom_cmd
+from utils.common import Result, run
 
 VERSIONS = ["1.2.0.7550", "1.6.2.9418", "1.8.0.10052"]
 
