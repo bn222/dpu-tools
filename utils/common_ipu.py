@@ -3,7 +3,6 @@ import os
 import re
 import pexpect
 import time
-import shutil
 import argparse
 from utils.minicom import configure_minicom, pexpect_child_wait, minicom_cmd
 from utils.common import Result, run
@@ -133,19 +132,5 @@ def console_ipu(args: argparse.Namespace) -> None:
     else:
         minicom_cmd = "minicom -b 115200 -D /dev/ttyUSB0"
 
-    minirc_path = "/root/.minirc.dfl"
-    if os.path.exists(minirc_path):
-        backed_up = True
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            temp_file_path = temp_file.name
-        shutil.move(minirc_path, temp_file_path)
-    else:
-        backed_up = False
-        temp_file_path = ""
-
-    with open(minirc_path, "w") as new_file:
-        new_file.write("pu rtscts           No\n")
-    os.system(minicom_cmd)
-
-    if backed_up:
-        shutil.move(temp_file_path, minirc_path)
+    with configure_minicom():
+        os.system(minicom_cmd)
