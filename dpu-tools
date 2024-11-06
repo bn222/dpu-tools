@@ -3,7 +3,7 @@
 import argparse
 import sys
 import logging
-from utils.fwutils import IPUFirmware
+from utils.fwutils import BFFirmware, IPUFirmware
 from utils.common_ipu import (
     VERSIONS,
     get_current_version,
@@ -79,17 +79,21 @@ class DPUTools:
         fw.reflash_ipu()
 
     def firmware_version(self) -> None:
-        result = get_current_version(self.args.imc_address, logger=logger)
-        if result.returncode:
-            logger.debug("Failed with ssh, trying minicom!")
-            try:
-                minicom_get_version(logger=logger)
-            except Exception as e:
-                logger.error(f"Error ssh try: {result.err}")
-                logger.error(f"Exception with minicom: {e}")
-                logger.error("Exiting...")
-                sys.exit(result.returncode)
-        print(result.out)
+        if self.dpu_type == DPUType.IPU.name:
+            result = get_current_version(self.args.imc_address, logger=logger)
+            if result.returncode:
+                logger.debug("Failed with ssh, trying minicom!")
+                try:
+                    minicom_get_version(logger=logger)
+                except Exception as e:
+                    logger.error(f"Error ssh try: {result.err}")
+                    logger.error(f"Exception with minicom: {e}")
+                    logger.error("Exiting...")
+                    sys.exit(result.returncode)
+            print(result.out)
+        elif self.dpu_type == DPUType.BF.name:
+            bf_fw = BFFirmware(self.args.bf_id)
+            bf_fw.firmware_version()
 
     def console(self) -> None:
         logger.debug(f"Current DPU Type: {self.dpu_type}")
