@@ -43,7 +43,7 @@ def setup_logging(verbose: bool) -> None:
 logger = logging.getLogger(__name__)
 
 
-def run(command: str, capture_output: bool = False, dry_run: bool = False) -> Result:
+def run(command: str, capture_output: bool = True, dry_run: bool = False) -> Result:
     """
     This run command is able to both output to the screen and capture its respective stream into a Result, using multithreading
     to avoid the blocking operaton that comes from reading from both pipes and outputing in real time.
