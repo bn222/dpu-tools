@@ -2,6 +2,7 @@
 import logging
 import sys
 import pexpect
+from typing import Optional
 from utils.minicom import minicom_cmd, pexpect_child_wait, configure_minicom
 from utils.common_ipu import (
     check_connectivity,
@@ -235,9 +236,52 @@ class IPUFirmware:
 
 
 class BFFirmware:
+    def __init__(self, id: int, version_to_flash: Optional[str] = None):
         self.id = id
+        bf = find_bf_pci_addresses_or_quit(self.id)
+        self.version_to_flash = version_to_flash
+        self.detected_version = bf_version(bf)
 
     def firmware_version(self) -> None:
         bf = find_bf_pci_addresses_or_quit(self.id)
         print(mst_flint(bf)["FW Version"])
 
+    def firmware_up(self) -> Result:
+        bf = find_bf_pci_addresses_or_quit(self.id)
+        target_psid = mst_flint(bf)["PSID"]
+        print(f"Bluefield-{self.detected_version} detected")
+
+        assert self.detected_version is not None
+        r = RemoteAPI(self.detected_version)
+        if self.version_to_flash:
+            version = self.version_to_flash
+            print("Installing specified version: %s" % version)
+        else:
+            version = r.get_latest_version()
+            print("Installing latest version: %s" % version)
+        if mst_flint(bf)["FW Version"] == version:
+            print(f"currently already on {version}")
+            return Result("", "", 0)
+
+        d = r.get_distros(version)
+        print("Distros: %s" % d)
+
+        for e in d:
+            os_param = r.get_os(version, e)
+            print(os_param)
+
+            if os_param != target_psid:
+                continue
+
+            url = r.get_download_info(version, e, os_param)["files"][0]["url"]
+            print(url)
+
+            run(f"wget -q {url} -O fw.zip")
+            ret = run("unzip -o fw.zip", capture_output=True)
+            bin_name = [x for x in ret.out.split(" ") if ".bin" in x]
+            print(f"bin_name: {bin_name}")
+            if len(bin_name) != 1:
+                print("unexpected number of binaries to download")
+            run(f"mstflint -y -d {bf} -i {bin_name[0]} burn")
+            run(f"mstfwreset -y -d {bf} r")
+        return Result("", "", 0)
