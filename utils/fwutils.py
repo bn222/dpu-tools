@@ -10,11 +10,9 @@ from utils.common_ipu import (
     VERSIONS,
     minicom_get_version,
 )
-from utils.common import (
-    extract_tar_gz,
-    download_file,
-    run,
-)
+from utils.common_bf import find_bf_pci_addresses_or_quit, mst_flint, bf_version
+from utils.common import extract_tar_gz, download_file, run, Result
+from utils.remote_api import RemoteAPI
 
 
 class IPUFirmware:
@@ -237,5 +235,9 @@ class IPUFirmware:
 
 
 class BFFirmware:
-    def __init__(self, id):
         self.id = id
+
+    def firmware_version(self) -> None:
+        bf = find_bf_pci_addresses_or_quit(self.id)
+        print(mst_flint(bf)["FW Version"])
+
