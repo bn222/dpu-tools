@@ -133,3 +133,31 @@ def bf_get_mode(id: int, should_next_boot: bool) -> None:
     else:
         logger.info("unknown")
     logger.debug(settings)
+
+
+def bf_set_mode(id: int, mode: str) -> None:
+    bf = find_bf_pci_addresses_or_quit(id)
+
+    dpu_mode = {
+        "INTERNAL_CPU_MODEL": "EMBEDDED_CPU(1)",
+        "INTERNAL_CPU_PAGE_SUPPLIER": "ECPF(0)",
+        "INTERNAL_CPU_ESWITCH_MANAGER": "ECPF(0)",
+        "INTERNAL_CPU_IB_VPORT0": "ECPF(0)",
+        "INTERNAL_CPU_OFFLOAD_ENGINE": "ENABLED(0)",
+    }
+
+    nic_mode = {
+        "INTERNAL_CPU_MODEL": "EMBEDDED_CPU(1)",
+        "INTERNAL_CPU_PAGE_SUPPLIER": "ECPF(1)",
+        "INTERNAL_CPU_ESWITCH_MANAGER": "ECPF(1)",
+        "INTERNAL_CPU_IB_VPORT0": "ECPF(1)",
+        "INTERNAL_CPU_OFFLOAD_ENGINE": "ENABLED(1)",
+    }
+
+    settings = dpu_mode if mode == "dpu" else nic_mode
+
+    joined = ""
+    for k, v in settings.items():
+        value = v[-3:].strip("()")
+        joined += f"{k}={value} "
+    run(f"mstconfig -y -d {bf} s {joined}")
