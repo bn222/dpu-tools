@@ -285,3 +285,7 @@ class BFFirmware:
             run(f"mstflint -y -d {bf} -i {bin_name[0]} burn")
             run(f"mstfwreset -y -d {bf} r")
         return Result("", "", 0)
+
+    def firmware_reset(self) -> None:
+        bf = find_bf_pci_addresses_or_quit(self.id)
+        run(f"mstconfig -y -d {bf} r")
