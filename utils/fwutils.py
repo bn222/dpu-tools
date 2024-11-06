@@ -234,3 +234,8 @@ class IPUFirmware:
         )
 
         return ssd_bin_file, recovery_bin_file
+
+
+class BFFirmware:
+    def __init__(self, id):
+        self.id = id
