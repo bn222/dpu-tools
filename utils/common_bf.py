@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 import os
 import sys
 import argparse
@@ -11,6 +12,9 @@ class Result:
     out: str
     err: str
     returncode: int
+
+
+logger = logging.getLogger(__name__)
 
 
 def all_interfaces() -> dict[str, str]:
@@ -76,3 +80,56 @@ def console_bf(args: argparse.Namespace) -> None:
     os.system(
         f"minicom --color on --baudrate 115200 --device /dev/rshim{args.bf_id//2}/console"
     )
+
+
+def bf_get_mode(id: int, should_next_boot: bool) -> None:
+    bf = find_bf_pci_addresses_or_quit(id)
+
+    cfg = [
+        "INTERNAL_CPU_MODEL",
+        "INTERNAL_CPU_PAGE_SUPPLIER",
+        "INTERNAL_CPU_ESWITCH_MANAGER",
+        "INTERNAL_CPU_IB_VPORT0",
+        "INTERNAL_CPU_OFFLOAD_ENGINE",
+    ]
+    all_cfg = " ".join(cfg)
+    ret = run(f"mstconfig -e -d {bf} q {all_cfg}", capture_output=True).out
+
+    save_next = False
+    settings = {}
+    for e in ret.split("\n"):
+        if not e:
+            continue
+        if e.startswith("Configurations:"):
+            save_next = True
+        elif save_next:
+            if "different from default/current" in e:
+                save_next = False
+                continue
+            k, default, current, next_boot = e.lstrip("*").split()
+            config = next_boot if should_next_boot else current
+            settings[k] = config.split("(")[1].split(")")[0]
+
+    dpu_mode = {
+        "INTERNAL_CPU_MODEL": "1",
+        "INTERNAL_CPU_PAGE_SUPPLIER": "0",
+        "INTERNAL_CPU_ESWITCH_MANAGER": "0",
+        "INTERNAL_CPU_IB_VPORT0": "0",
+        "INTERNAL_CPU_OFFLOAD_ENGINE": "0",
+    }
+
+    nic_mode = {
+        "INTERNAL_CPU_MODEL": "1",
+        "INTERNAL_CPU_PAGE_SUPPLIER": "1",
+        "INTERNAL_CPU_ESWITCH_MANAGER": "1",
+        "INTERNAL_CPU_IB_VPORT0": "1",
+        "INTERNAL_CPU_OFFLOAD_ENGINE": "1",
+    }
+
+    if dpu_mode == settings:
+        logger.info("dpu")
+    elif nic_mode == settings:
+        logger.info("nic")
+    else:
+        logger.info("unknown")
+    logger.debug(settings)
