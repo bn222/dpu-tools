@@ -10,7 +10,7 @@ from utils.common_ipu import (
     minicom_get_version,
 )
 from utils.common_ipu import console_ipu
-from utils.common_bf import console_bf
+from utils.common_bf import console_bf, bf_get_mode
 from utils.common import (
     DPUType,
     detect_dpu_type,
@@ -37,6 +37,7 @@ class DPUTools:
             "firmware_version": self.firmware_version,
             "list_dpus": self.list_dpus,
             "console": self.console,
+            "get_mode": self.get_mode,
         }
         # Execute the selected command
         if self.args.subcommand in command_map:
@@ -125,6 +126,9 @@ class DPUTools:
         for i, (k, (d, kind)) in enumerate(devs.items()):
             print(f"{i: 5d}  {k.ljust(8)}  {d.ljust(12)}  {kind}")
 
+    def get_mode(self) -> None:
+        bf_get_mode(self.args.bf_id, self.args.next_boot)
+
 
 def main():
     detected = detect_dpu_type()
@@ -182,6 +186,14 @@ def main():
     if detected.out == DPUType.IPU.name:
         console_parser.add_argument("--imc-address", required=True, help="IMC address")
         console_parser.add_argument("--target", choices=["imc", "acc"], default="imc")
+
+    if detected.out == DPUType.BF.name:
+        get_mode_parser = subparsers.add_parser(
+            "get_mode", help="Retrieves the current mode for a Bluefield"
+        )
+        get_mode_parser.set_defaults(subcommand="get_mode")
+        get_mode_parser.add_argument("--next-boot", action="store_true")
+
     # Parse arguments and initialize DPUTools
     args = parser.parse_args()
     setup_logging(args.verbose)
