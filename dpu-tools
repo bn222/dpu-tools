@@ -124,6 +124,7 @@ def main():
         logger.error(f"Couldn't detect dpu_type: {detected.err}")
         sys.exit(detected.returncode)
     parser = argparse.ArgumentParser(description="Tools to interact with an IPU")
+
     parser.add_argument(
         "--verbose",
         action="store_true",
@@ -134,24 +135,31 @@ def main():
         choices=["bf", "ipu"],
         default=detected.out,
     )
+    if detected.out == DPUType.BF.name:
+        parser.add_argument("-i", "--bf-id", type=int, default=0, help="Specify BF ID")
+    parser.add_argument("--dry-run", action="store_true", help="Simulate changes")
     subparsers = parser.add_subparsers(title="subcommands", dest="subcommand")
 
     reset_parser = subparsers.add_parser("reset", help="Reset the IPU")
 
     firmware_parser = subparsers.add_parser("firmware", help="Control the IPU firmware")
-    firmware_parser.add_argument("--imc-address", required=True, help="IMC address")
-    firmware_parser.add_argument("--repo-url", help="Firmware repo URL")
-    firmware_parser.add_argument(
-        "--dry-run", action="store_true", help="Simulate changes"
-    )
+    if detected.out == DPUType.IPU.name:
+        firmware_parser.add_argument("--imc-address", required=True, help="IMC address")
+        firmware_parser.add_argument("--repo-url", help="Firmware repo URL")
     firmware_subparsers = firmware_parser.add_subparsers(dest="firmware_command")
 
     firmware_subparsers.add_parser("reset", help="Reset firmware").set_defaults(
         subcommand="firmware_reset"
     )
     firmware_up_parser = firmware_subparsers.add_parser("up", help="Update firmware")
-    firmware_up_parser.add_argument("--version", choices=VERSIONS)
     firmware_up_parser.set_defaults(subcommand="firmware_up")
+
+    if detected.out == DPUType.BF.name:
+        firmware_up_parser.add_argument(
+            "--version", action="store_true", help="BF Version to Upgrade"
+        )
+    elif detected.out == DPUType.IPU.name:
+        firmware_up_parser.add_argument("--version", choices=VERSIONS)
 
     firmware_subparsers.add_parser("version", help="Get firmware version").set_defaults(
         subcommand="firmware_version"
@@ -162,13 +170,10 @@ def main():
     )
 
     console_parser = subparsers.add_parser("console", help="Open IPU console")
-    console_parser.add_argument("--target", choices=["imc", "acc"], default="imc")
-
-    console_parser.add_argument(
-        "-i", "--bf-id", type=int, default=0, help="Specify BF ID"
-    )
     console_parser.set_defaults(subcommand="console")
-
+    if detected.out == DPUType.IPU.name:
+        console_parser.add_argument("--imc-address", required=True, help="IMC address")
+        console_parser.add_argument("--target", choices=["imc", "acc"], default="imc")
     # Parse arguments and initialize DPUTools
     args = parser.parse_args()
     setup_logging(args.verbose)
