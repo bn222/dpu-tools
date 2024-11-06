@@ -49,14 +49,18 @@ class DPUTools:
         run("ssh root@100.0.0.100 sudo reboot")
 
     def firmware_up(self) -> None:
-        fw = IPUFirmware(
-            self.args.imc_address,
-            self.args.version,
-            repo_url=self.args.repo_url,
-            dry_run=self.args.dry_run,
-            verbose=self.args.verbose,
-        )
-        fw.reflash_ipu()
+        if self.dpu_type == DPUType.IPU.name:
+            fw = IPUFirmware(
+                self.args.imc_address,
+                self.args.version,
+                repo_url=self.args.repo_url,
+                dry_run=self.args.dry_run,
+                verbose=self.args.verbose,
+            )
+            fw.reflash_ipu()
+        elif self.dpu_type == DPUType.BF.name:
+            bf_fw = BFFirmware(self.args.bf_id, self.args.version)
+            bf_fw.firmware_up()
 
     def firmware_reset(self) -> None:
         if self.dpu_type == DPUType.IPU.name:
