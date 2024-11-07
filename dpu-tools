@@ -10,7 +10,7 @@ from utils.common_ipu import (
     minicom_get_version,
 )
 from utils.common_ipu import console_ipu
-from utils.common_bf import bf_reset, console_bf, bf_get_mode, bf_set_mode
+from utils.common_bf import bf_reset, console_bf, bf_get_mode, bf_set_mode, download_bfb
 from utils.common import (
     DPUType,
     detect_dpu_type,
@@ -48,6 +48,7 @@ class DPUTools:
             "mode": self.mode,
             "pxeboot": self.pxeboot,
             "cx-fwup": cx_fwup,
+            "bfb": self.bfb,
         }
         # Execute the selected command
         if self.args.subcommand in command_map:
@@ -151,6 +152,10 @@ class DPUTools:
     def pxeboot(self) -> None:
         px = Pxeboot(self.args)
         px.start_pxeboot()
+
+    def bfb(self) -> None:
+        if self.dpu_type == DPUType.BF.name:
+            download_bfb(self.args.bf_id)
 
 
 def main() -> None:
@@ -258,7 +263,10 @@ def main() -> None:
         "cx-fwup", help="Used for upgrading Nvidia cx Smart Nics"
     )
     cx_fwup_parser.set_defaults(subcommand="cx-fwup")
-
+    bfb_parser = utils_subparser.add_parser(
+        "bfb", help="Downloads BFB images and sends it to BF"
+    )
+    bfb_parser.set_defaults(subcommand="bfb")
     # Parse arguments and initialize DPUTools
     args = parser.parse_args()
     setup_logging(args.verbose)
