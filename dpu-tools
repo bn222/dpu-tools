@@ -18,6 +18,7 @@ from utils.common import (
     setup_logging,
     run,
 )
+from utils.pxeboot import Pxeboot
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class DPUTools:
             "list_dpus": self.list_dpus,
             "console": self.console,
             "mode": self.mode,
+            "pxeboot": self.pxeboot,
         }
         # Execute the selected command
         if self.args.subcommand in command_map:
@@ -132,6 +134,10 @@ class DPUTools:
         else:
             bf_get_mode(self.args.bf_id, self.args.next_boot)
 
+    def pxeboot(self) -> None:
+        px = Pxeboot(self.args)
+        px.start_pxeboot()
+
 
 def main():
     detected = detect_dpu_type()
@@ -197,6 +203,38 @@ def main():
         mode_parser.add_argument("--set-mode", choices=["dpu", "nic"])
         mode_parser.set_defaults(subcommand="mode")
         mode_parser.add_argument("--next-boot", action="store_true")
+
+        url = "http://download.eng.brq.redhat.com/released/rhel-9/RHEL-9/9.2.0/BaseOS/aarch64/os/images/efiboot.img"
+        pxeboot_parser = subparsers.add_parser("pxeboot", help="Boots BF using pxeboot")
+        pxeboot_parser.set_defaults(subcommand="pxeboot")
+
+        pxeboot_parser.add_argument(
+            "iso", metavar="iso", type=str, help="iso to use for PXE booting"
+        )
+        pxeboot_parser.add_argument(
+            "-e",
+            metavar="efiboot_img",
+            dest="efiboot_img",
+            default=url,
+            type=str,
+            help="Specify url to pull efiboot from.",
+        )
+        pxeboot_parser.add_argument(
+            "-m",
+            "--wait-minicom",
+            dest="wait_minicom",
+            default=False,
+            action="store_true",
+            help="Instead of running minicom to select pxe entry, just wait indefinitely.",
+        )
+        help = (
+            "if key is specified, the script will log in to the BF and"
+            " run 'ip --json a' before quitting. This also means that the"
+            " script will only block when the BF has booted"
+        )
+        pxeboot_parser.add_argument(
+            "-w", metavar="key", dest="key", default="", type=str, help=help
+        )
 
     # Parse arguments and initialize DPUTools
     args = parser.parse_args()
