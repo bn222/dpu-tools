@@ -27,7 +27,14 @@ class DPUTools:
     def __init__(self, args: argparse.Namespace):
         # Initialize shared attributes
         self.args = args
-        self.dpu_type = args.dpu_type.upper()
+        if args.dpu_type is not None:
+            self.dpu_type = args.dpu_type.upper()
+        else:
+            result = detect_dpu_type()
+            if result.returncode or result.err:
+                logger.error("Couldn't detect dpu type and None was provided")
+                exit(result.returncode)
+            self.dpu_type = result.out
 
     def dispatch(self) -> None:
         """Map subcommands to methods and execute the chosen command."""
@@ -112,6 +119,9 @@ class DPUTools:
     def console(self) -> None:
         logger.debug(f"Current DPU Type: {self.dpu_type}")
         # TODO Since we can only console into the ipu through the provisioner, the dpu type should be given as an argument
+        if self.args.dpu_type is None:
+            logger.error("Console requires --dpu-type to function")
+            exit(1)
         if self.dpu_type == DPUType.IPU.name:
             console_ipu(self.args)
         elif self.dpu_type == DPUType.BF.name:
@@ -157,7 +167,6 @@ def main():
     parser.add_argument(
         "--dpu-type",
         choices=["bf", "ipu"],
-        default=detected.out,
     )
     if detected.out == DPUType.BF.name:
         parser.add_argument("-i", "--bf-id", type=int, default=0, help="Specify BF ID")
@@ -196,9 +205,7 @@ def main():
 
     console_parser = subparsers.add_parser("console", help="Open IPU console")
     console_parser.set_defaults(subcommand="console")
-    if detected.out == DPUType.IPU.name:
-        console_parser.add_argument("--imc-address", required=True, help="IMC address")
-        console_parser.add_argument("--target", choices=["imc", "acc"], default="imc")
+    console_parser.add_argument("--target", choices=["imc", "acc"], default="imc")
 
     if detected.out == DPUType.BF.name:
         mode_parser = subparsers.add_parser(
