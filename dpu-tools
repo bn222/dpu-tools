@@ -153,7 +153,7 @@ class DPUTools:
         px.start_pxeboot()
 
 
-def main():
+def main() -> None:
     detected = detect_dpu_type()
     if detected.returncode:
         logger.error(f"Couldn't detect dpu_type: {detected.err}")
