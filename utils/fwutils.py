@@ -289,3 +289,9 @@ class BFFirmware:
     def firmware_reset(self) -> None:
         bf = find_bf_pci_addresses_or_quit(self.id)
         run(f"mstconfig -y -d {bf} r")
+
+
+def cx_fwup() -> None:
+    run("chmod +x mlxup")
+    r = run("/mlxup -y")
+    exit(r.returncode)
