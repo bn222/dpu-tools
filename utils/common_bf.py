@@ -180,3 +180,9 @@ def download_bfb(id: int) -> None:
     with open(fn, "wb") as f:
         f.write(r.content)
     print(f"It took {round(time.time() - start, 2)}s to load the BFB image")
+
+
+def bf_reset(id: int) -> None:
+    find_bf_pci_addresses_or_quit(id)
+    with open(f"/dev/rshim{id//2}/misc", "w") as f:
+        f.write("SW_RESET 1")
