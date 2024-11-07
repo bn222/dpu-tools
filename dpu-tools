@@ -3,7 +3,7 @@
 import argparse
 import sys
 import logging
-from utils.fwutils import BFFirmware, IPUFirmware
+from utils.fwutils import BFFirmware, IPUFirmware, cx_fwup
 from utils.common_ipu import (
     VERSIONS,
     get_current_version,
@@ -47,6 +47,7 @@ class DPUTools:
             "console": self.console,
             "mode": self.mode,
             "pxeboot": self.pxeboot,
+            "cx-fwup": cx_fwup,
         }
         # Execute the selected command
         if self.args.subcommand in command_map:
@@ -246,6 +247,17 @@ def main():
         pxeboot_parser.add_argument(
             "-w", metavar="key", dest="key", default="", type=str, help=help
         )
+
+    utils_parser = subparsers.add_parser(
+        "utils", help="Other non-dpu utilities that may still be useful"
+    )
+    utils_subparser = utils_parser.add_subparsers(
+        title="utils subcommand", help="Houses the useful non-dpu utilities"
+    )
+    cx_fwup_parser = utils_subparser.add_parser(
+        "cx-fwup", help="Used for upgrading Nvidia cx Smart Nics"
+    )
+    cx_fwup_parser.set_defaults(subcommand="cx-fwup")
 
     # Parse arguments and initialize DPUTools
     args = parser.parse_args()
