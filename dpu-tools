@@ -10,7 +10,7 @@ from utils.common_ipu import (
     minicom_get_version,
 )
 from utils.common_ipu import console_ipu
-from utils.common_bf import console_bf, bf_get_mode, bf_set_mode
+from utils.common_bf import bf_reset, console_bf, bf_get_mode, bf_set_mode
 from utils.common import (
     DPUType,
     detect_dpu_type,
@@ -49,7 +49,10 @@ class DPUTools:
             sys.exit(1)
 
     def reset(self) -> None:
-        run("ssh root@100.0.0.100 sudo reboot")
+        if self.dpu_type == DPUType.IPU.name:
+            run("ssh root@100.0.0.100 sudo reboot")
+        if self.dpu_type == DPUType.BF.name:
+            bf_reset(self.args.bf_id)
 
     def firmware_up(self) -> None:
         if self.dpu_type == DPUType.IPU.name:
@@ -162,6 +165,7 @@ def main():
     subparsers = parser.add_subparsers(title="subcommands", dest="subcommand")
 
     reset_parser = subparsers.add_parser("reset", help="Reset the IPU")
+    reset_parser.set_defaults(subcommand="reset")
 
     firmware_parser = subparsers.add_parser("firmware", help="Control the IPU firmware")
     if detected.out == DPUType.IPU.name:
