@@ -3,6 +3,8 @@ import logging
 import os
 import sys
 import argparse
+import requests
+import time
 from typing import Optional
 from utils.common import run
 
@@ -161,3 +163,20 @@ def bf_set_mode(id: int, mode: str) -> None:
         value = v[-3:].strip("()")
         joined += f"{k}={value} "
     run(f"mstconfig -y -d {bf} s {joined}")
+
+
+def download_bfb(id: int) -> None:
+    _ = find_bf_pci_addresses_or_quit(id)
+
+    bfb_image = "DOCA_2.0.2_BSP_4.0.3_Ubuntu_22.04-8.23-04.prod.bfb"
+    bfb_url = f"https://content.mellanox.com/BlueField/BFBs/Ubuntu22.04/{bfb_image}"
+    print(f"Downloading bfb image from {bfb_url}")
+    start = time.time()
+    r = requests.get(bfb_url)
+    print(f"It took {round(time.time() - start, 2)}s to download the BFB image")
+    fn = f"/dev/rshim{id//2}/boot"
+    print(f"Loading BFB image onto the BF using {fn}. This will take a while")
+    start = time.time()
+    with open(fn, "wb") as f:
+        f.write(r.content)
+    print(f"It took {round(time.time() - start, 2)}s to load the BFB image")
