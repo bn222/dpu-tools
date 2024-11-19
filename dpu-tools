@@ -59,7 +59,9 @@ class DPUTools:
 
     def reset(self) -> None:
         if self.dpu_type == DPUType.IPU.name:
-            run("ssh root@100.0.0.100 sudo reboot")
+            run(
+                f"ssh -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' {self.args.imc_address} 'reboot'"
+            )
         if self.dpu_type == DPUType.BF.name:
             bf_reset(self.args.bf_id)
 
@@ -181,6 +183,8 @@ def main() -> None:
 
     reset_parser = subparsers.add_parser("reset", help="Reset the IPU")
     reset_parser.set_defaults(subcommand="reset")
+    if detected.out == DPUType.IPU.name:
+        reset_parser.add_argument("--imc-address", required=True, help="IMC address")
 
     firmware_parser = subparsers.add_parser("firmware", help="Control the IPU firmware")
     if detected.out == DPUType.IPU.name:
