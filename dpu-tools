@@ -24,17 +24,11 @@ logger = logging.getLogger(__name__)
 
 
 class DPUTools:
-    def __init__(self, args: argparse.Namespace):
+    def __init__(self, dpu_type: str, args: argparse.Namespace):
         # Initialize shared attributes
         self.args = args
-        if args.dpu_type is not None:
-            self.dpu_type = args.dpu_type.upper()
-        else:
-            result = detect_dpu_type()
-            if result.returncode or result.err:
-                logger.error("Couldn't detect dpu type and None was provided")
-                exit(result.returncode)
-            self.dpu_type = result.out
+        assert dpu_type is not None
+        self.dpu_type = dpu_type.upper()
 
     def dispatch(self) -> None:
         """Map subcommands to methods and execute the chosen command."""
@@ -161,33 +155,41 @@ class DPUTools:
 
 
 def main() -> None:
-    detected = detect_dpu_type()
-    if detected.returncode:
-        logger.error(f"Couldn't detect dpu_type: {detected.err}")
-        sys.exit(detected.returncode)
     parser = argparse.ArgumentParser(description="Tools to interact with an IPU")
+    parser.add_argument(
+        "--dpu-type", choices=["bf", "ipu"], help="Specify the DPU type"
+    )
+    known_args, remaining_known_args = parser.parse_known_args()
+    dpu_type = known_args.dpu_type
+    # Step 2: Detect DPU type if --dpu-type is not provided
+    if dpu_type is None:
+        logger.debug(f"Dpu_type was not given, detecting it...")
+        detected = detect_dpu_type()
+        if detected.returncode != 0:
+            logging.error(f"Couldn't detect DPU type: {detected.err}")
+            sys.exit(detected.returncode)
+        dpu_type = detected.out.upper()
+        logger.debug(f"Detected dpu_type: {dpu_type}")
+    else:
+        dpu_type = dpu_type.upper()
 
     parser.add_argument(
         "--verbose",
         action="store_true",
         help="Increase output verbosity",
     )
-    parser.add_argument(
-        "--dpu-type",
-        choices=["bf", "ipu"],
-    )
-    if detected.out == DPUType.BF.name:
+    if dpu_type == DPUType.BF.name:
         parser.add_argument("-i", "--bf-id", type=int, default=0, help="Specify BF ID")
     parser.add_argument("--dry-run", action="store_true", help="Simulate changes")
     subparsers = parser.add_subparsers(title="subcommands", dest="subcommand")
 
     reset_parser = subparsers.add_parser("reset", help="Reset the IPU")
     reset_parser.set_defaults(subcommand="reset")
-    if detected.out == DPUType.IPU.name:
+    if dpu_type == DPUType.IPU.name:
         reset_parser.add_argument("--imc-address", required=True, help="IMC address")
 
     firmware_parser = subparsers.add_parser("firmware", help="Control the IPU firmware")
-    if detected.out == DPUType.IPU.name:
+    if dpu_type == DPUType.IPU.name:
         firmware_parser.add_argument("--imc-address", required=True, help="IMC address")
         firmware_parser.add_argument("--repo-url", help="Firmware repo URL")
     firmware_subparsers = firmware_parser.add_subparsers(dest="firmware_command")
@@ -198,11 +200,11 @@ def main() -> None:
     firmware_up_parser = firmware_subparsers.add_parser("up", help="Update firmware")
     firmware_up_parser.set_defaults(subcommand="firmware_up")
 
-    if detected.out == DPUType.BF.name:
+    if dpu_type == DPUType.BF.name:
         firmware_up_parser.add_argument(
             "--version", action="store_true", help="BF Version to Upgrade"
         )
-    elif detected.out == DPUType.IPU.name:
+    elif dpu_type == DPUType.IPU.name:
         firmware_up_parser.add_argument("--version", choices=VERSIONS)
 
     firmware_subparsers.add_parser("version", help="Get firmware version").set_defaults(
@@ -217,7 +219,7 @@ def main() -> None:
     console_parser.set_defaults(subcommand="console")
     console_parser.add_argument("--target", choices=["imc", "acc"], default="imc")
 
-    if detected.out == DPUType.BF.name:
+    if dpu_type == DPUType.BF.name:
         mode_parser = subparsers.add_parser(
             "mode", help="Retrieves the current mode for a Bluefield"
         )
@@ -272,9 +274,9 @@ def main() -> None:
     )
     bfb_parser.set_defaults(subcommand="bfb")
     # Parse arguments and initialize DPUTools
-    args = parser.parse_args()
+    args = parser.parse_args(remaining_known_args)
     setup_logging(args.verbose)
-    dpu_tools = DPUTools(args)
+    dpu_tools = DPUTools(dpu_type, args)
     dpu_tools.dispatch()
 
 
