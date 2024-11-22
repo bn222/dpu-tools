@@ -1,0 +1,409 @@
+#!/usr/bin/env python3
+
+from abc import ABC, abstractmethod
+import argparse
+import sys
+import logging
+from typing import Any, Optional
+from utils.fwutils import BFFirmware, IPUFirmware, cx_fwup
+from utils.common_ipu import (
+    VERSIONS,
+    get_current_version,
+    minicom_get_version,
+)
+from utils.common_ipu import console_ipu
+from utils.common_bf import bf_reset, console_bf, bf_get_mode, bf_set_mode, download_bfb
+from utils.common import (
+    DPUType,
+    detect_dpu_type,
+    scan_for_dpus,
+    setup_logging,
+    run,
+)
+from utils.pxeboot import Pxeboot
+
+logger = logging.getLogger(__name__)
+
+
+class DPUTools(ABC):
+    def __init__(self, parser: argparse.ArgumentParser) -> None:
+        self.args = self.setup_arguments(parser)
+
+    def dispatch(self) -> None:
+        """Map subcommands to methods and execute the chosen command."""
+        command_map = {
+            "list_dpus": self.list_dpus,
+            "cx-fwup": cx_fwup,
+        }
+        # Execute the selected command
+        if self.args.subcommand in command_map:
+            command_map[self.args.subcommand]()
+
+    @abstractmethod
+    def reset(self) -> None:
+        pass
+
+    @abstractmethod
+    def firmware_up(self) -> None:
+        pass
+
+    @abstractmethod
+    def firmware_reset(self) -> None:
+        pass
+
+    @abstractmethod
+    def firmware_version(self) -> None:
+        pass
+
+    @abstractmethod
+    def console(self) -> None:
+        pass
+
+    def list_dpus(self) -> None:
+        """
+        This function
+        """
+        devs = scan_for_dpus()
+        print("ID     netdev    PCI-Address   Kind")
+        print("-----  --------  ------------  ------")
+        for i, (k, (d, kind)) in enumerate(devs.items()):
+            print(f"{i: 5d}  {k.ljust(8)}  {d.ljust(12)}  {kind}")
+
+    def setup_logging(self) -> None:
+        setup_logging(self.args.verbose)
+
+    def setup_arguments(self, parser: argparse.ArgumentParser) -> argparse.Namespace:
+        """Add common arguments and subcommands."""
+        # Add global arguments
+        parser.add_argument(
+            "--verbose", action="store_true", help="Enable verbose output"
+        )
+        parser.add_argument("--dry-run", action="store_true", help="Simulate changes")
+
+        # Add shared subcommands
+        subparsers = parser.add_subparsers(title="subcommands", dest="subcommand")
+        self._add_shared_subcommands(subparsers)
+
+        # Let the subclass add its own arguments
+        self._add_subclass_specific_arguments(parser, subparsers)
+
+        # add help later, when all other args have been added
+        parser.add_argument(
+            "-h",
+            "--help",
+            action="help",
+            default=argparse.SUPPRESS,
+            help="Show this help message and exit.",
+        )
+        return parser.parse_args()
+
+    def _add_shared_subcommands(
+        self, subparsers: argparse._SubParsersAction[Any]
+    ) -> None:
+        """Add subcommands common to all DPU types."""
+        list_parser = subparsers.add_parser("list", help="List all DPUs")
+        list_parser.set_defaults(subcommand="list_dpus")
+
+        utils_parser = subparsers.add_parser(
+            "utils", help="Other non-dpu utilities that may still be useful"
+        )
+        utils_subparser = utils_parser.add_subparsers(
+            title="utils subcommand", help="Houses the useful non-dpu utilities"
+        )
+        cx_fwup_parser = utils_subparser.add_parser(
+            "cx-fwup", help="Used for upgrading Nvidia cx Smart Nics"
+        )
+        cx_fwup_parser.set_defaults(subcommand="cx-fwup")
+
+    @abstractmethod
+    def _add_subclass_specific_arguments(
+        self,
+        parser: argparse.ArgumentParser,
+        subparsers: argparse._SubParsersAction[Any],
+    ) -> None:
+        """Subclasses must define their specific arguments and subcommands."""
+        pass
+
+
+class BFTools(DPUTools):
+    def dispatch(self) -> None:
+        """Map subcommands to methods and execute the chosen command."""
+        super().dispatch()
+        command_map = {
+            "reset": self.reset,
+            "firmware_reset": self.firmware_reset,
+            "firmware_up": self.firmware_up,
+            "firmware_version": self.firmware_version,
+            "console": self.console,
+            "mode": self.mode,
+            "pxeboot": self.pxeboot,
+            "bfb": self.bfb,
+        }
+        # Execute the selected command
+        if self.args.subcommand in command_map:
+            command_map[self.args.subcommand]()
+        else:
+            print("Invalid command. Use --help for a list of available commands.")
+            sys.exit(1)
+
+    def reset(self) -> None:
+        bf_reset(self.args.bf_id)
+
+    def firmware_up(self) -> None:
+        bf_fw = BFFirmware(self.args.bf_id, self.args.version)
+        bf_fw.firmware_up()
+
+    def firmware_reset(self) -> None:
+        bf_fw = BFFirmware(self.args.bf_id)
+        bf_fw.firmware_reset()
+
+    def firmware_version(self) -> None:
+        bf_fw = BFFirmware(self.args.bf_id)
+        bf_fw.firmware_version()
+
+    def console(self) -> None:
+        if self.args.dpu_type is None:
+            logger.error("Console requires --dpu-type to function")
+            exit(1)
+        console_bf(self.args)
+
+    def mode(self) -> None:
+        if self.args.set_mode:
+            bf_set_mode(self.args.bf_id, self.args.set_mode)
+        else:
+            bf_get_mode(self.args.bf_id, self.args.next_boot)
+
+    def pxeboot(self) -> None:
+        px = Pxeboot(self.args)
+        px.start_pxeboot()
+
+    def bfb(self) -> None:
+        download_bfb(self.args.bf_id)
+
+    def _add_subclass_specific_arguments(
+        self,
+        parser: argparse.ArgumentParser,
+        subparsers: argparse._SubParsersAction[Any],
+    ) -> None:
+        """Subclasses must define their specific arguments and subcommands."""
+        parser.add_argument("-i", "--bf-id", type=int, default=0, help="Specify BF ID")
+        reset_parser = subparsers.add_parser("reset", help="Reset the BF")
+        reset_parser.set_defaults(subcommand="reset")
+        firmware_parser = subparsers.add_parser(
+            "firmware", help="Control the BF firmware"
+        )
+        firmware_subparsers = firmware_parser.add_subparsers(dest="firmware_command")
+
+        firmware_subparsers.add_parser("reset", help="Reset firmware").set_defaults(
+            subcommand="firmware_reset"
+        )
+        firmware_up_parser = firmware_subparsers.add_parser(
+            "up", help="Update firmware"
+        )
+        firmware_up_parser.set_defaults(subcommand="firmware_up")
+
+        firmware_up_parser.add_argument(
+            "--version", action="store_true", help="BF Version to Upgrade"
+        )
+
+        firmware_subparsers.add_parser(
+            "version", help="Get firmware version"
+        ).set_defaults(subcommand="firmware_version")
+
+        subparsers.add_parser("list", help="List devices").set_defaults(
+            subcommand="list_dpus"
+        )
+
+        console_parser = subparsers.add_parser("console", help="Open BF console")
+        console_parser.set_defaults(subcommand="console")
+
+        mode_parser = subparsers.add_parser(
+            "mode", help="Retrieves the current mode for a Bluefield"
+        )
+        mode_parser.add_argument("--set-mode", choices=["dpu", "nic"])
+        mode_parser.set_defaults(subcommand="mode")
+        mode_parser.add_argument("--next-boot", action="store_true")
+
+        url = "http://download.eng.brq.redhat.com/released/rhel-9/RHEL-9/9.2.0/BaseOS/aarch64/os/images/efiboot.img"
+        pxeboot_parser = subparsers.add_parser("pxeboot", help="Boots BF using pxeboot")
+        pxeboot_parser.set_defaults(subcommand="pxeboot")
+
+        pxeboot_parser.add_argument(
+            "iso", metavar="iso", type=str, help="iso to use for PXE booting"
+        )
+        pxeboot_parser.add_argument(
+            "-e",
+            metavar="efiboot_img",
+            dest="efiboot_img",
+            default=url,
+            type=str,
+            help="Specify url to pull efiboot from.",
+        )
+        pxeboot_parser.add_argument(
+            "-m",
+            "--wait-minicom",
+            dest="wait_minicom",
+            default=False,
+            action="store_true",
+            help="Instead of running minicom to select pxe entry, just wait indefinitely.",
+        )
+        help = (
+            "if key is specified, the script will log in to the BF and"
+            " run 'ip --json a' before quitting. This also means that the"
+            " script will only block when the BF has booted"
+        )
+        pxeboot_parser.add_argument(
+            "-w", metavar="key", dest="key", default="", type=str, help=help
+        )
+
+        bfb_parser = subparsers.add_parser(
+            "bfb", help="Downloads BFB images and sends it to BF"
+        )
+        bfb_parser.set_defaults(subcommand="bfb")
+
+
+class IPUTools(DPUTools):
+    def dispatch(self) -> None:
+        """Map subcommands to methods and execute the chosen command."""
+        super().dispatch()
+        command_map = {
+            "reset": self.reset,
+            "firmware_reset": self.firmware_reset,
+            "firmware_up": self.firmware_up,
+            "firmware_version": self.firmware_version,
+            "console": self.console,
+        }
+        # Execute the selected command
+        if self.args.subcommand in command_map:
+            command_map[self.args.subcommand]()
+        else:
+            print("Invalid command. Use --help for a list of available commands.")
+            sys.exit(1)
+
+    def reset(self) -> None:
+        run(
+            f"ssh -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' {self.args.imc_address} 'reboot'"
+        )
+
+    def firmware_up(self) -> None:
+        fw = IPUFirmware(
+            self.args.imc_address,
+            self.args.version,
+            repo_url=self.args.repo_url,
+            dry_run=self.args.dry_run,
+            verbose=self.args.verbose,
+        )
+        fw.reflash_ipu()
+
+    def firmware_reset(self) -> None:
+        result = get_current_version(self.args.imc_address, logger=logger)
+        if result.returncode:
+            logger.debug("Failed with ssh, trying minicom!")
+            try:
+                minicom_get_version(logger=logger)
+            except Exception as e:
+                logger.error(f"Error ssh try: {result.err}")
+                logger.error(f"Exception with minicom: {e}")
+                logger.error("Exiting...")
+                sys.exit(result.returncode)
+        fw = IPUFirmware(
+            self.args.imc_address,
+            version=result.out,
+            repo_url=self.args.repo_url,
+            dry_run=self.args.dry_run,
+            verbose=self.args.verbose,
+        )
+        fw.reflash_ipu()
+
+    def firmware_version(self) -> None:
+        result = get_current_version(self.args.imc_address, logger=logger)
+        if result.returncode:
+            logger.debug("Failed with ssh, trying minicom!")
+            try:
+                minicom_get_version(logger=logger)
+            except Exception as e:
+                logger.error(f"Error ssh try: {result.err}")
+                logger.error(f"Exception with minicom: {e}")
+                logger.error("Exiting...")
+                sys.exit(result.returncode)
+        print(result.out)
+
+    def console(self) -> None:
+        # NOTE Since we can only console into the ipu through the provisioner, the dpu type should be given as an argument
+        if self.args.dpu_type is None:
+            logger.error("Console requires --dpu-type to function")
+            exit(1)
+        console_ipu(self.args)
+
+    def _add_subclass_specific_arguments(
+        self,
+        parser: argparse.ArgumentParser,
+        subparsers: argparse._SubParsersAction[Any],
+    ) -> None:
+        parser.add_argument("--imc-address", required=True, help="IMC address")
+        reset_parser = subparsers.add_parser("reset", help="Reset the IPU")
+        reset_parser.set_defaults(subcommand="reset")
+
+        firmware_parser = subparsers.add_parser(
+            "firmware", help="Control the IPU firmware"
+        )
+        firmware_parser.add_argument("--repo-url", help="Firmware repo URL")
+        firmware_subparsers = firmware_parser.add_subparsers(dest="firmware_command")
+
+        firmware_subparsers.add_parser("reset", help="Reset firmware").set_defaults(
+            subcommand="firmware_reset"
+        )
+        firmware_up_parser = firmware_subparsers.add_parser(
+            "up", help="Update firmware"
+        )
+        firmware_up_parser.set_defaults(subcommand="firmware_up")
+
+        firmware_up_parser.add_argument("--version", choices=VERSIONS)
+
+        firmware_subparsers.add_parser(
+            "version", help="Get firmware version"
+        ).set_defaults(subcommand="firmware_version")
+        console_parser = subparsers.add_parser("console", help="Open IPU console")
+        console_parser.set_defaults(subcommand="console")
+        console_parser.add_argument("--target", choices=["imc", "acc"], default="imc")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        add_help=False,
+        description="Tools to interact with an IPU",
+    )
+    parser.add_argument(
+        "--dpu-type", choices=["bf", "ipu"], help="Specify the DPU type"
+    )
+    known_args, _ = parser.parse_known_args()
+    dpu_type = known_args.dpu_type
+    # Step 2: Detect DPU type if --dpu-type is not provided
+    if dpu_type is None:
+        logger.debug(f"Dpu_type was not given, detecting it...")
+        detected = detect_dpu_type()
+        if detected.returncode != 0:
+            logging.error(f"Couldn't detect DPU type: {detected.err}")
+            sys.exit(detected.returncode)
+        dpu_type = detected.out.upper()
+        logger.debug(f"Detected dpu_type: {dpu_type}")
+    else:
+        dpu_type = dpu_type.upper()
+
+    dpu_tools: Optional[DPUTools] = None
+    if dpu_type == DPUType.IPU.name:
+        dpu_tools = IPUTools(parser)
+    elif dpu_type == DPUType.BF.name:
+        dpu_tools = BFTools(parser)
+    else:
+        logger.error(f"Dpu_type: {dpu_type} has not yet been implemented")
+        exit(1)
+    assert dpu_tools is not None
+
+    dpu_tools.setup_logging()
+    dpu_tools.dispatch()
+
+
+if __name__ == "__main__":
+    main()
