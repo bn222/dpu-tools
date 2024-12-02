@@ -2,6 +2,7 @@
 import logging
 import sys
 import pexpect
+import json
 from typing import Optional
 from utils.minicom import minicom_cmd, pexpect_child_wait, configure_minicom
 from utils.common_ipu import (
@@ -260,6 +261,48 @@ class IPUFirmware:
             full_address,
             dry_run=self.dry_run,
         )
+
+    def fixboard_is_needed(self) -> bool:
+        full_address = f"root@{self.imc_address}"
+        try:
+            result = ssh_run(
+                "iset-cli get-board-config",
+                full_address,
+                dry_run=self.dry_run,
+            )
+            if result.returncode:
+                self.logger.error(
+                    f"Couldn't retrieve get board config using iset-cli, Error: {result.err}"
+                )
+                exit(1)
+            # Parse the JSON from the command output
+            self.logger.debug(f"Board Config command output: {result.out}")
+            board_config: dict[str, str] = json.loads(result.out)
+            self.logger.debug(f"Json Board Config: {board_config}")
+            for key, value in board_config.items():
+                if "MAC Address" in key:
+                    if value in ["00:00:00:00:00:00", "FF:FF:FF:FF:FF:FF"]:
+                        return True
+                if "PBA" in key:
+                    if value in [
+                        "000000000000000000000000",
+                        "FFFFFFFFFFFFFFFFFFFFFFFF",
+                    ]:
+                        self.logger.debug(f"PBA check failed for {key}: {value}")
+                        return True
+                if "Serial Number" in key:
+                    if value == "":
+                        return True
+
+            return False
+
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Failed to parse JSON: {e}")
+            exit(1)
+
+        except Exception as e:
+            self.logger.error(f"Unexpected error: {e}")
+            exit(1)
 
 
 class BFFirmware:
