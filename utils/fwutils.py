@@ -234,6 +234,33 @@ class IPUFirmware:
 
         return ssd_bin_file, recovery_bin_file
 
+    def apply_fixboard(self) -> None:
+        fixboard_bin_board_config_file = self.ensure_fixboard_image_on_imc()
+        full_address = f"root@{self.imc_address}"
+        result = ssh_run(
+            "flash_erase /dev/mtd0 0x30000 1",
+            full_address,
+            dry_run=self.dry_run,
+        )
+        if result.returncode:
+            self.logger.error(f"Couldn't flash_erase, Error: {result.err}")
+            exit(1)
+
+        result = ssh_run(
+            f"nandwrite --start=0x30000 --input-size=0x1000 -p /dev/mtd0 {fixboard_bin_board_config_file}",
+            full_address,
+            dry_run=self.dry_run,
+        )
+        if result.returncode:
+            self.logger.error(f"Couldn't nandwrite, Error: {result.err}")
+            exit(1)
+        self.logger.info("Rebooting IMC now!")
+        result = ssh_run(
+            "reboot",
+            full_address,
+            dry_run=self.dry_run,
+        )
+
 
 class BFFirmware:
     def __init__(self, id: int, version_to_flash: Optional[str] = None):
