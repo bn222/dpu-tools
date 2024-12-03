@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import logging
+from os import makedirs
 import sys
 import pexpect
 import json
+import re
+import tempfile
 from typing import Optional
 from utils.minicom import minicom_cmd, pexpect_child_wait, configure_minicom
 from utils.common_ipu import (
@@ -13,7 +16,14 @@ from utils.common_ipu import (
     minicom_get_version,
 )
 from utils.common_bf import find_bf_pci_addresses_or_quit, mst_flint, bf_version
-from utils.common import extract_tar_gz, download_file, run, Result
+from utils.common import (
+    extract_tar_gz,
+    download_file,
+    run,
+    Result,
+    list_http_directory,
+    ssh_run,
+)
 from utils.remote_api import RemoteAPI
 
 
@@ -234,6 +244,70 @@ class IPUFirmware:
         )
 
         return ssd_bin_file, recovery_bin_file
+
+    def ensure_fixboard_image_on_imc(self) -> str:
+        """
+        Download and extract the SSD image and recovery firmware for the given version.
+        Return the paths for both files.
+        """
+        # Regex to capture the number after the first `-` and a word
+        pattern = r"^[a-zA-Z0-9]+-[a-zA-Z]+(\d+)"
+
+        # Search for the number in the hostname
+        match = re.search(pattern, self.imc_address)
+
+        if match:
+            number = match.group(1)
+            self.logger.debug(f"Extracted number: {number}")
+        else:
+            self.logger.error(
+                "No number found in the hostname. Can't proceed with detecting pre-built images"
+            )
+            exit(1)
+
+        base_url = f"http://{self.repo_url}/fixboard"
+        server_dirs = list_http_directory(base_url)
+        self.logger.debug(f"server_dirs:{server_dirs}")
+        if any(number in dir for dir in server_dirs):
+            base_url = f"http://{self.repo_url}/fixboard/{number}"
+            with tempfile.TemporaryDirectory() as temp_dir:
+                download_dir = f"{temp_dir}/{self.repo_url}/fixboard/{number}"  # Or any preferred directory for temp storage
+                makedirs(download_dir, exist_ok=True)
+                fixboard_files = list_http_directory(base_url)
+                fixboard_local_file_paths: list[str] = []
+                for file in fixboard_files:
+                    fixboard_local_file_paths.append(
+                        download_file(f"{base_url}/{file}", download_dir)
+                    )
+
+                # Find the required .bin files
+                self.logger.debug(
+                    f"fixboard_local_file_paths: {fixboard_local_file_paths}"
+                )
+                for fixboard_file in fixboard_local_file_paths:
+                    if fixboard_file.endswith(".bin.board_config"):
+
+                        full_address = f"root@{self.imc_address}"
+
+                        file_name = fixboard_file.split("/")[-1]
+                        result = run(
+                            f"scp -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' {fixboard_file} {full_address}:/tmp/{file_name}",
+                            dry_run=self.dry_run,
+                        )
+                        if result.returncode:
+                            self.logger.error(
+                                f"Couldn't transfer file using scp, Error: {result.err}"
+                            )
+                            exit(1)
+                        return f"/tmp/{file_name}"
+
+                self.logger.error("Couldn't find the board_config file, exitting...")
+                exit(1)
+        else:
+            self.logger.error(
+                f"server {self.imc_address} with number {number} doesn't have pre built fixboard images yet, please add the necessary files to the repo"
+            )
+            exit(1)
 
     def apply_fixboard(self) -> None:
         fixboard_bin_board_config_file = self.ensure_fixboard_image_on_imc()
