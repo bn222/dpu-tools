@@ -181,3 +181,13 @@ def detect_dpu_type() -> Result:
             returncode=-1,
         )
     return Result(next(iter(kinds)), "", 0)
+
+
+def list_http_directory(url: str) -> list[str]:
+    """
+    Fetch the directory listing from an HTTP server.
+    """
+    response = requests.get(url)
+    response.raise_for_status()
+    # Use a simple regex to extract links
+    return re.findall(r'href=["\'](.*?)["\']', response.text)
