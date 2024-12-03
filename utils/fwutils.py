@@ -48,8 +48,9 @@ class IPUFirmware:
                 "clean_up_imc",
                 "flash_ssd_image",
                 "flash_spi_image",
+                "apply_fixboard",
             ]
-        self.steps_to_run = steps_to_run
+        self.steps_to_run = steps_to_run if not dry_run else []
         if self.dry_run:
             self.logger.info(
                 "DRY RUN, This is just a preview of the actions that will be taken"
@@ -138,6 +139,15 @@ class IPUFirmware:
         else:
             self.logger.info("Skipping flash_spi_image")
 
+        self.logger.info("Step 5: apply_fixboard")
+        if self.should_run("apply_fixboard"):
+            if self.fixboard_is_needed():
+                self.logger.info("Applying fixboard!")
+                self.apply_fixboard()
+            else:
+                self.logger.info("Fixboard not needed!")
+        else:
+            self.logger.info("Skipping applying_fixboard")
         # Step 5: Reboot IMC
         self.logger.info("Done!")
         self.logger.info(f"Please cold reboot IMC at {self.imc_address}")
