@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 from abc import ABC, abstractmethod
 import argparse
 import sys
 import logging
-from typing import Any, Optional
+from typing import Optional
 from utils.fwutils import BFFirmware, IPUFirmware, cx_fwup
 from utils.common_ipu import (
     VERSIONS,
@@ -98,7 +99,7 @@ class DPUTools(ABC):
         return parser.parse_args()
 
     def _add_shared_subcommands(
-        self, subparsers: argparse._SubParsersAction[Any]
+        self, subparsers: argparse._SubParsersAction[argparse.ArgumentParser]
     ) -> None:
         """Add subcommands common to all DPU types."""
         list_parser = subparsers.add_parser("list", help="List all DPUs")
@@ -119,7 +120,7 @@ class DPUTools(ABC):
     def _add_subclass_specific_arguments(
         self,
         parser: argparse.ArgumentParser,
-        subparsers: argparse._SubParsersAction[Any],
+        subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
     ) -> None:
         """Subclasses must define their specific arguments and subcommands."""
         pass
@@ -183,7 +184,7 @@ class BFTools(DPUTools):
     def _add_subclass_specific_arguments(
         self,
         parser: argparse.ArgumentParser,
-        subparsers: argparse._SubParsersAction[Any],
+        subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
     ) -> None:
         """Subclasses must define their specific arguments and subcommands."""
         parser.add_argument("-i", "--bf-id", type=int, default=0, help="Specify BF ID")
@@ -338,7 +339,7 @@ class IPUTools(DPUTools):
     def _add_subclass_specific_arguments(
         self,
         parser: argparse.ArgumentParser,
-        subparsers: argparse._SubParsersAction[Any],
+        subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
     ) -> None:
         parser.add_argument("--imc-address", required=True, help="IMC address")
         reset_parser = subparsers.add_parser("reset", help="Reset the IPU")
