@@ -181,3 +181,23 @@ def detect_dpu_type() -> Result:
             returncode=-1,
         )
     return Result(next(iter(kinds)), "", 0)
+
+
+def list_http_directory(url: str) -> list[str]:
+    """
+    Fetch the directory listing from an HTTP server.
+    """
+    response = requests.get(url)
+    response.raise_for_status()
+    # Use a simple regex to extract links
+    return re.findall(r'href=["\'](.*?)["\']', response.text)
+
+
+def ssh_run(cmd: str, address: str, dry_run: bool) -> Result:
+    """
+    Takes a command and runs it on the remote location
+    """
+    return run(
+        f"ssh -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' {address} '{cmd}'",
+        dry_run=dry_run,
+    )
