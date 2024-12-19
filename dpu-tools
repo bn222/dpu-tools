@@ -204,7 +204,10 @@ class BFTools(DPUTools):
         firmware_up_parser.set_defaults(subcommand="firmware_up")
 
         firmware_up_parser.add_argument(
-            "--version", action="store_true", help="BF Version to Upgrade"
+            "-v",
+            "--version",
+            type=str,
+            help="BF Version to Upgrade",
         )
 
         firmware_subparsers.add_parser(
