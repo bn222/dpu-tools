@@ -1,8 +1,7 @@
 import subprocess
-import logging
+from logger import logger
 from typing import IO
 import requests
-import sys
 import tarfile
 import os
 import re
@@ -23,24 +22,6 @@ class Result:
     out: str
     err: str
     returncode: int
-
-
-def setup_logging(verbose: bool) -> None:
-    if verbose:
-        log_level = logging.DEBUG
-    else:
-        log_level = logging.INFO
-
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.StreamHandler(sys.stdout),  # Log to stdout
-        ],
-    )
-
-
-logger = logging.getLogger(__name__)
 
 
 def run(command: str, capture_output: bool = True, dry_run: bool = False) -> Result:
