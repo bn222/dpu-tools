@@ -1,4 +1,4 @@
-import logging
+from logger import logger
 import os
 import re
 import pexpect
@@ -8,8 +8,6 @@ from utils.minicom import configure_minicom, pexpect_child_wait, minicom_cmd
 from utils.common import Result, run
 
 VERSIONS = ["1.2.0.7550", "1.6.2.9418", "1.8.0.10052"]
-
-logger = logging.getLogger(__name__)
 
 
 def find_image(
@@ -27,9 +25,7 @@ def find_image(
     )
 
 
-def get_current_version(
-    imc_address: str, logger: logging.Logger, dry_run: bool = False
-) -> Result:
+def get_current_version(imc_address: str, dry_run: bool = False) -> Result:
     logger.debug("Getting Version via SSH")
     version = ""
     # Execute the commands over SSH with dry_run handling
@@ -49,7 +45,7 @@ def get_current_version(
     return Result(version, result.err, result.returncode)
 
 
-def minicom_get_version(logger: logging.Logger) -> str:
+def minicom_get_version() -> str:
     version = ""
     run("pkill -9 minicom")
     logger.debug("Configuring minicom")

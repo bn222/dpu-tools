@@ -1,5 +1,5 @@
 import dataclasses
-import logging
+from logger import logger
 import os
 import sys
 import argparse
@@ -14,9 +14,6 @@ class Result:
     out: str
     err: str
     returncode: int
-
-
-logger = logging.getLogger(__name__)
 
 
 def all_interfaces() -> dict[str, str]:

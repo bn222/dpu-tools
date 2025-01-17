@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import logging
+from logger import logger
 from os import makedirs
 import sys
 import pexpect
@@ -38,7 +38,6 @@ class IPUFirmware:
         verbose: bool = False,
     ):
         self.verbose = verbose
-        self.logger = logging.getLogger(__name__)
         self.imc_address = imc_address
         self.dry_run = dry_run
         self.version_to_flash = version or VERSIONS[-1]
@@ -52,81 +51,79 @@ class IPUFirmware:
             ]
         self.steps_to_run = steps_to_run if not dry_run else []
         if self.dry_run:
-            self.logger.info(
+            logger.info(
                 "DRY RUN, This is just a preview of the actions that will be taken"
             )
-            self.logger.debug(f"version_to_flash: {self.version_to_flash}")
-            self.logger.debug(f"imc_address: {self.imc_address}")
-            self.logger.debug(f"steps_to_run: {self.steps_to_run}")
-            self.logger.debug(f"repo_url: {self.repo_url}")
-            self.logger.debug(f"dry_run: {self.dry_run}")
-            self.logger.debug(f"verbose: {self.verbose}")
+            logger.debug(f"version_to_flash: {self.version_to_flash}")
+            logger.debug(f"imc_address: {self.imc_address}")
+            logger.debug(f"steps_to_run: {self.steps_to_run}")
+            logger.debug(f"repo_url: {self.repo_url}")
+            logger.debug(f"dry_run: {self.dry_run}")
+            logger.debug(f"verbose: {self.verbose}")
 
     def should_run(self, step_name: str) -> bool:
         """Check if the step should be run"""
         return step_name in self.steps_to_run
 
     def reflash_ipu(self) -> None:
-        self.logger.info("Reflashing the firmware of IPU.")
+        logger.info("Reflashing the firmware of IPU.")
 
         if not self.dry_run:
-            self.logger.info("Detecting version")
-            result = get_current_version(
-                imc_address=self.imc_address, logger=self.logger
-            )
+            logger.info("Detecting version")
+            result = get_current_version(imc_address=self.imc_address)
             if result.returncode:
-                current_version = minicom_get_version(self.logger)
+                current_version = minicom_get_version()
             else:
                 current_version = result.out
-            self.logger.info(f"Version: '{self.version_to_flash}'")
+            logger.info(f"Version: '{self.version_to_flash}'")
             if current_version == "1.2.0.7550":
                 self.steps_to_run.insert(0, "ipu_runtime_access")
         else:
-            self.logger.info("[DRY RUN] Detecting version")
+            logger.info("[DRY RUN] Detecting version")
 
         # Retrieve images if not a dry run
-        self.logger.info("Retrieving images.....")
+        logger.info("Retrieving images.....")
         ssd_image_path, spi_image_path = (
             self.get_images() if not self.dry_run else ("", "")
         )
-        self.logger.info("Done Retrieving images")
+        logger.info("Done Retrieving images")
 
         # Step 1: ipu_runtime_access
-        self.logger.info("Step 1: ipu_runtime_access")
+        logger.info("Step 1: ipu_runtime_access")
         if self.should_run("ipu_runtime_access"):
             self.ipu_runtime_access()
         else:
-            logging.info("Skipping ipu_runtime_access")
+            logger.info("Skipping ipu_runtime_access")
 
         # Step 2: clean_up_imc
-        self.logger.info("Step 2: clean_up_imc")
+        logger.info("Step 2: clean_up_imc")
         if self.should_run("clean_up_imc"):
             self.clean_up_imc()
         else:
-            logging.info("Skipping clean_up_imc")
+            logger.info("Skipping clean_up_imc")
 
         # Step 3: Flash SSD image using dd
-        self.logger.info("Step 3: flash_ssd_image")
+        logger.info("Step 3: flash_ssd_image")
         if self.should_run("flash_ssd_image"):
             result = run(
                 f"dd bs=16M if={ssd_image_path} | ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {self.imc_address} 'dd bs=16M of=/dev/nvme0n1' status=progress",
                 dry_run=self.dry_run,
             )
             if result.returncode:
-                self.logger.error("Failed to flash_ssd_image")
+                logger.error("Failed to flash_ssd_image")
                 sys.exit(result.returncode)
         else:
-            self.logger.info("Skipping flash_ssd_image")
+            logger.info("Skipping flash_ssd_image")
 
         # Step 4: Flash SPI image
-        self.logger.info("Step 4: flash_spi_image")
+        logger.info("Step 4: flash_spi_image")
         if self.should_run("flash_spi_image"):
             result = run(
                 f"ssh -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' {self.imc_address} 'flash_erase /dev/mtd0 0 0'",
                 dry_run=self.dry_run,
             )
             if result.returncode:
-                self.logger.error("Failed to erase SPI image")
+                logger.error("Failed to erase SPI image")
                 sys.exit(result.returncode)
 
             result = run(
@@ -134,64 +131,64 @@ class IPUFirmware:
                 dry_run=self.dry_run,
             )
             if result.returncode:
-                self.logger.error("Failed to flash_spi_image")
+                logger.error("Failed to flash_spi_image")
                 sys.exit(result.returncode)
         else:
-            self.logger.info("Skipping flash_spi_image")
+            logger.info("Skipping flash_spi_image")
 
-        self.logger.info("Step 5: apply_fixboard")
+        logger.info("Step 5: apply_fixboard")
         if self.should_run("apply_fixboard"):
             if self.fixboard_is_needed():
-                self.logger.info("Applying fixboard!")
+                logger.info("Applying fixboard!")
                 self.apply_fixboard()
             else:
-                self.logger.info("Fixboard not needed!")
+                logger.info("Fixboard not needed!")
         else:
-            self.logger.info("Skipping applying_fixboard")
+            logger.info("Skipping applying_fixboard")
         # Step 5: Reboot IMC
-        self.logger.info("Done!")
-        self.logger.info(f"Please cold reboot IMC at {self.imc_address}")
+        logger.info("Done!")
+        logger.info(f"Please cold reboot IMC at {self.imc_address}")
 
     def ipu_runtime_access(self) -> None:
         if self.dry_run:
 
-            self.logger.debug("[DRY RUN] pkill -9 minicom")
-            self.logger.debug(
+            logger.debug("[DRY RUN] pkill -9 minicom")
+            logger.debug(
                 "[DRY RUN] Wait for 'Press CTRL-A Z for help on special keys.'"
             )
-            self.logger.debug("[DRY RUN] Ready to enter command")
-            self.logger.debug("[DRY RUN] Send '/etc/ipu/ipu_runtime_access'")
-            self.logger.debug("[DRY RUN] Wait for '.*#'")
-            self.logger.debug("[DRY RUN] Capturing and printing output")
-            self.logger.debug("[DRY RUN] Send Ctrl-A and 'x' to exit minicom")
-            self.logger.debug("[DRY RUN] Expect EOF")
+            logger.debug("[DRY RUN] Ready to enter command")
+            logger.debug("[DRY RUN] Send '/etc/ipu/ipu_runtime_access'")
+            logger.debug("[DRY RUN] Wait for '.*#'")
+            logger.debug("[DRY RUN] Capturing and printing output")
+            logger.debug("[DRY RUN] Send Ctrl-A and 'x' to exit minicom")
+            logger.debug("[DRY RUN] Expect EOF")
         else:
-            self.logger.debug(
+            logger.debug(
                 f"Checking that ipu runtime access is up by sshing into {self.imc_address}"
             )
             connected = check_connectivity(self.imc_address)
             if not connected:
-                self.logger.debug(
+                logger.debug(
                     f"Couldn't ssh into {self.imc_address}, enabling runtime access through minicom"
                 )
                 run("pkill -9 minicom")
-                self.logger.debug("Configuring minicom")
+                logger.debug("Configuring minicom")
                 with configure_minicom():
-                    self.logger.debug("spawn minicom")
+                    logger.debug("spawn minicom")
                     child = pexpect.spawn(minicom_cmd("imc"))
                     child.maxread = 10000
                     pexpect_child_wait(
                         child, ".*Press CTRL-A Z for help on special keys.*", 120
                     )
-                    self.logger.debug("Ready to enter command")
+                    logger.debug("Ready to enter command")
                     child.sendline("/etc/ipu/ipu_runtime_access")
                     # Wait for the expected response (adjust the timeout as needed)
                     pexpect_child_wait(child, ".*Enabling network and sshd.*", 120)
 
-                    # Capture and self.logger.debug the output
+                    # Capture and logger.debug the output
                     assert child.before is not None
-                    self.logger.debug(child.before.decode("utf-8"))
-                    self.logger.debug(child.after.decode("utf-8"))
+                    logger.debug(child.before.decode("utf-8"))
+                    logger.debug(child.after.decode("utf-8"))
                     # Gracefully close Picocom (equivalent to pressing Ctrl-A and Ctrl-X)
                     child.sendcontrol("a")
                     child.sendline("x")
@@ -199,7 +196,7 @@ class IPUFirmware:
                     child.expect(pexpect.EOF)
 
     def clean_up_imc(self) -> None:
-        self.logger.info("Cleaning up IMC via SSH")
+        logger.info("Cleaning up IMC via SSH")
 
         # Execute the commands over SSH with dry_run handling
         run(
@@ -215,12 +212,12 @@ class IPUFirmware:
             dry_run=self.dry_run,
         )
 
-        self.logger.debug("Filling nvme0n1 with zeros")
+        logger.debug("Filling nvme0n1 with zeros")
         run(
             f"ssh -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' {self.imc_address} 'dd if=/dev/zero of=/dev/nvme0n1 bs=64k status=progress'",
             dry_run=self.dry_run,
         )
-        self.logger.debug("Done filling nvme0n1 with zeros")
+        logger.debug("Done filling nvme0n1 with zeros")
 
     def get_images(self) -> tuple[str, str]:
         """
@@ -268,16 +265,16 @@ class IPUFirmware:
 
         if match:
             number = match.group(1)
-            self.logger.debug(f"Extracted number: {number}")
+            logger.debug(f"Extracted number: {number}")
         else:
-            self.logger.error(
+            logger.error(
                 "No number found in the hostname. Can't proceed with detecting pre-built images"
             )
             exit(1)
 
         base_url = f"http://{self.repo_url}/fixboard"
         server_dirs = list_http_directory(base_url)
-        self.logger.debug(f"server_dirs:{server_dirs}")
+        logger.debug(f"server_dirs:{server_dirs}")
         if any(number in dir for dir in server_dirs):
             base_url = f"http://{self.repo_url}/fixboard/{number}"
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -291,9 +288,7 @@ class IPUFirmware:
                     )
 
                 # Find the required .bin files
-                self.logger.debug(
-                    f"fixboard_local_file_paths: {fixboard_local_file_paths}"
-                )
+                logger.debug(f"fixboard_local_file_paths: {fixboard_local_file_paths}")
                 for fixboard_file in fixboard_local_file_paths:
                     if fixboard_file.endswith(".bin.board_config"):
 
@@ -305,16 +300,16 @@ class IPUFirmware:
                             dry_run=self.dry_run,
                         )
                         if result.returncode:
-                            self.logger.error(
+                            logger.error(
                                 f"Couldn't transfer file using scp, Error: {result.err}"
                             )
                             exit(1)
                         return f"/tmp/{file_name}"
 
-                self.logger.error("Couldn't find the board_config file, exitting...")
+                logger.error("Couldn't find the board_config file, exitting...")
                 exit(1)
         else:
-            self.logger.error(
+            logger.error(
                 f"server {self.imc_address} with number {number} doesn't have pre built fixboard images yet, please add the necessary files to the repo"
             )
             exit(1)
@@ -328,7 +323,7 @@ class IPUFirmware:
             dry_run=self.dry_run,
         )
         if result.returncode:
-            self.logger.error(f"Couldn't flash_erase, Error: {result.err}")
+            logger.error(f"Couldn't flash_erase, Error: {result.err}")
             exit(1)
 
         result = ssh_run(
@@ -337,9 +332,9 @@ class IPUFirmware:
             dry_run=self.dry_run,
         )
         if result.returncode:
-            self.logger.error(f"Couldn't nandwrite, Error: {result.err}")
+            logger.error(f"Couldn't nandwrite, Error: {result.err}")
             exit(1)
-        self.logger.info("Rebooting IMC now!")
+        logger.info("Rebooting IMC now!")
         result = ssh_run(
             "reboot",
             full_address,
@@ -355,14 +350,14 @@ class IPUFirmware:
                 dry_run=self.dry_run,
             )
             if result.returncode:
-                self.logger.error(
+                logger.error(
                     f"Couldn't retrieve get board config using iset-cli, Error: {result.err}"
                 )
                 exit(1)
             # Parse the JSON from the command output
-            self.logger.debug(f"Board Config command output: {result.out}")
+            logger.debug(f"Board Config command output: {result.out}")
             board_config: dict[str, str] = json.loads(result.out)
-            self.logger.debug(f"Json Board Config: {board_config}")
+            logger.debug(f"Json Board Config: {board_config}")
             for key, value in board_config.items():
                 if "MAC Address" in key:
                     if value in ["00:00:00:00:00:00", "FF:FF:FF:FF:FF:FF"]:
@@ -372,7 +367,7 @@ class IPUFirmware:
                         "000000000000000000000000",
                         "FFFFFFFFFFFFFFFFFFFFFFFF",
                     ]:
-                        self.logger.debug(f"PBA check failed for {key}: {value}")
+                        logger.debug(f"PBA check failed for {key}: {value}")
                         return True
                 if "Serial Number" in key:
                     if value == "":
@@ -381,11 +376,11 @@ class IPUFirmware:
             return False
 
         except json.JSONDecodeError as e:
-            self.logger.error(f"Failed to parse JSON: {e}")
+            logger.error(f"Failed to parse JSON: {e}")
             exit(1)
 
         except Exception as e:
-            self.logger.error(f"Unexpected error: {e}")
+            logger.error(f"Unexpected error: {e}")
             exit(1)
 
 

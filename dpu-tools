@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import argparse
 import sys
-import logging
+from logger import logger, setup_logging
 from typing import Optional
 from utils.fwutils import BFFirmware, IPUFirmware, cx_fwup
 from utils.common_ipu import (
@@ -18,12 +18,9 @@ from utils.common import (
     DPUType,
     detect_dpu_type,
     scan_for_dpus,
-    setup_logging,
     run,
 )
 from utils.pxeboot import Pxeboot
-
-logger = logging.getLogger(__name__)
 
 
 class DPUTools(ABC):
@@ -69,9 +66,6 @@ class DPUTools(ABC):
         print("-----  --------  ------------  ------")
         for i, (k, (d, kind)) in enumerate(devs.items()):
             print(f"{i: 5d}  {k.ljust(8)}  {d.ljust(12)}  {kind}")
-
-    def setup_logging(self) -> None:
-        setup_logging(self.args.verbose)
 
     def setup_arguments(self, parser: argparse.ArgumentParser) -> argparse.Namespace:
         """Add common arguments and subcommands."""
@@ -300,11 +294,11 @@ class IPUTools(DPUTools):
         fw.reflash_ipu()
 
     def firmware_reset(self) -> None:
-        result = get_current_version(self.args.imc_address, logger=logger)
+        result = get_current_version(self.args.imc_address)
         if result.returncode:
-            logger.debug("Failed with ssh, trying minicom!")
+            logger.info("Failed with ssh, trying minicom!")
             try:
-                minicom_get_version(logger=logger)
+                minicom_get_version()
             except Exception as e:
                 logger.error(f"Error ssh try: {result.err}")
                 logger.error(f"Exception with minicom: {e}")
@@ -320,11 +314,11 @@ class IPUTools(DPUTools):
         fw.reflash_ipu()
 
     def firmware_version(self) -> None:
-        result = get_current_version(self.args.imc_address, logger=logger)
+        result = get_current_version(self.args.imc_address)
         if result.returncode:
-            logger.debug("Failed with ssh, trying minicom!")
+            logger.info("Failed with ssh, trying minicom!")
             try:
-                minicom_get_version(logger=logger)
+                minicom_get_version()
             except Exception as e:
                 logger.error(f"Error ssh try: {result.err}")
                 logger.error(f"Exception with minicom: {e}")
@@ -385,13 +379,13 @@ def main() -> None:
     dpu_type = known_args.dpu_type
     # Step 2: Detect DPU type if --dpu-type is not provided
     if dpu_type is None:
-        logger.debug(f"Dpu_type was not given, detecting it...")
+        logger.info(f"Dpu_type was not given, detecting it...")
         detected = detect_dpu_type()
         if detected.returncode != 0:
-            logging.error(f"Couldn't detect DPU type: {detected.err}")
+            logger.error(f"Couldn't detect DPU type: {detected.err}")
             sys.exit(detected.returncode)
         dpu_type = detected.out.upper()
-        logger.debug(f"Detected dpu_type: {dpu_type}")
+        logger.info(f"Detected dpu_type: {dpu_type}")
     else:
         dpu_type = dpu_type.upper()
 
@@ -405,7 +399,7 @@ def main() -> None:
         exit(1)
     assert dpu_tools is not None
 
-    dpu_tools.setup_logging()
+    setup_logging(dpu_tools.args.verbose)
     dpu_tools.dispatch()
 
 

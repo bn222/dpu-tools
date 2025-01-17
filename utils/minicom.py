@@ -3,11 +3,9 @@ import pexpect
 import os
 import shutil
 import tempfile
-import logging
+from logger import logger
 from contextlib import contextmanager
 from typing import Generator
-
-logger = logging.getLogger(__name__)
 
 
 def minicom_cmd(dpu_type: str) -> str:
