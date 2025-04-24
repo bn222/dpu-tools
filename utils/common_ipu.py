@@ -7,7 +7,7 @@ import argparse
 from utils.minicom import configure_minicom, pexpect_child_wait, minicom_cmd
 from utils.common import Result, run
 
-VERSIONS = ["1.2.0.7550", "1.6.2.9418", "1.8.0.10052"]
+VERSIONS = ["1.2.0.7550", "1.6.2.9418", "1.8.0.10052", "2.0.0.11126"]
 
 
 def find_image(
