@@ -112,6 +112,23 @@ class IPUFirmware:
             if result.returncode:
                 logger.error("Failed to flash_ssd_image")
                 sys.exit(result.returncode)
+
+            logger.info("Tidy up file system")
+            # sync at IMC to refresh the partition tables
+            run(
+                f"ssh -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' {self.imc_address} 'sync ; sync ; sync'",
+                dry_run=self.dry_run,
+            )
+            # write the in-memory partition table to disk
+            run(
+                f"ssh -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' {self.imc_address} 'echo -e \"w\" | fdisk /dev/nvme0n1'",
+                dry_run=self.dry_run,
+            )
+            run(
+                f"ssh -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' {self.imc_address} 'parted -sf /dev/nvme0n1 print'",
+                dry_run=self.dry_run,
+            )
+
         else:
             logger.info("Skipping flash_ssd_image")
 
